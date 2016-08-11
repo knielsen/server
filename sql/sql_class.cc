@@ -1687,7 +1687,9 @@ void THD::reset_for_reuse()
   free_connection_done= 0;
   m_command= COM_CONNECT;
   profiling.reset();
+#ifndef EMBEDDED_LIBRARY
   active_mysql = 0;
+#endif
 }
 
 
