@@ -138,7 +138,7 @@ cool
 BEGIN;
 SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
 cool
-0
+1
 ROLLBACK;
 SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
 cool
@@ -148,7 +148,7 @@ Variable_name	Value
 Qcache_queries_in_cache	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	1
+Qcache_hits	2
 drop table t1;
 set @@global.query_cache_size = @save_query_cache_size;
 SET global query_cache_type=default;

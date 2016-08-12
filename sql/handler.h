@@ -573,7 +573,32 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
-  xid_t() {}                                /* Remove gcc warning */  
+  xid_t() {}                                /* Remove gcc warning */
+  long get_format_id() const
+  { return formatID; }
+  void set_format_id(long v)
+  {
+    formatID= v;
+  }
+  long get_gtrid_length() const
+  { return gtrid_length; }
+  void set_gtrid_length(long v)
+  {
+    gtrid_length= v;
+  }
+  long get_bqual_length() const
+  { return bqual_length; }
+  void set_bqual_length(long v)
+  {
+    bqual_length= v;
+  }
+  const char* get_data() const
+  { return data; }
+  void set_data(const void* v, long l)
+  {
+    DBUG_ASSERT(l <= XIDDATASIZE);
+    memcpy(data, v, l);
+  }
   bool eq(struct xid_t *xid)
   { return !xid->is_null() && eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -585,6 +610,13 @@ struct xid_t {
     formatID= f;
     memcpy(data, g, gtrid_length= gl);
     memcpy(data+gl, b, bqual_length= bl);
+  }
+  void reset()
+  {
+    formatID= -1;
+    gtrid_length= 0;
+    bqual_length= 0;
+    memset(data, 0, XIDDATASIZE);
   }
   void set(ulonglong xid)
   {

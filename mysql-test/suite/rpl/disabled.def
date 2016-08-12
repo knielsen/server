@@ -13,3 +13,8 @@
 rpl_spec_variables        : BUG#11755836 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
 rpl_get_master_version_and_clock : Bug#11766137 Jan 05 2011 joro Valgrind warnings rpl_get_master_version_and_clock
 rpl_partition_archive     : MDEV-5077 2013-09-27 svoj Cannot exchange partition with archive table
+rpl_parallel              : MDEV-10550
+rpl_parallel_optimistic   : MDEV-10550
+rpl_parallel_retry        : MDEV-10550
+rpl_parallel_optimistic_nobinlog : MDEV-10550
+

@@ -18,7 +18,9 @@
 # Galera library does not compile with windows
 #
 IF(UNIX)
-  SET(with_wsrep_default ON)
+# OFF by default until 5.7 wsrep is released
+#  SET(with_wsrep_default ON)
+  SET(with_wsrep_default OFF)
 ELSE()
   SET(with_wsrep_default OFF)
 ENDIF()
