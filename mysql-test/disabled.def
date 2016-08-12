@@ -26,4 +26,3 @@ implicit_commit          : MDEV-10549
 lock_sync                : MDEV-10548
 innodb_mysql_sync        : MDEV-10548
 partition_debug_sync     : MDEV-10548
-multi_update_innodb      : MDEV-10547

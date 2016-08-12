@@ -5740,7 +5740,7 @@ Determines if the primary key is clustered index.
 @return true */
 
 bool
-ha_innobase::primary_key_is_clustered() const
+ha_innobase::primary_key_is_clustered()
 /*=========================================*/
 {
 	return(true);

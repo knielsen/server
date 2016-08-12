@@ -343,7 +343,7 @@ public:
 		qc_engine_callback*	call_back,
 		ulonglong*		engine_data);
 
-	bool primary_key_is_clustered() const;
+	bool primary_key_is_clustered();
 
 	int cmp_ref(const uchar* ref1, const uchar* ref2);
 
