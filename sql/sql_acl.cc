@@ -13729,8 +13729,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
       // this is not documented in the man pages as needing to be freed, but per
       // https://github.com/openssl/openssl/issues/18665 and also examples in openssl
       // code like https://github.com/openssl/openssl/blob/d4700c0b237c05315e3bf14fc416abcbdfe51ff2/crypto/cmp/cmp_asn.c#L502
-      if (eku != NULL)
-        EXTENDED_KEY_USAGE_free(eku);
+//      if (eku != NULL)
+//        EXTENDED_KEY_USAGE_free(eku);
       DBUG_PRINT("info", ("comparing subjects: '%s' and '%s'",
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
