@@ -952,6 +952,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
 
   THD_STAGE_INFO(thd, stage_update);
+
+  if  (duplic == DUP_UPDATE)
+  {
+    restore_record(table,s->default_values);	// Get empty record
+    thd->reconsider_logging_format_for_iodup(table);
+  }
   do
   {
     DBUG_PRINT("info", ("iteration %llu", iteration));
@@ -1064,7 +1070,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         break;
       }
 
-      thd->decide_logging_format_low(table);
 #ifndef EMBEDDED_LIBRARY
       if (lock_type == TL_WRITE_DELAYED)
       {
