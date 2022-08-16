@@ -982,6 +982,9 @@ extern char server_uid[SERVER_UID_SIZE+1];
 extern uint volatile global_disable_checkpoint;
 extern my_bool opt_help;
 
+extern char *server_version_commit_hash_ptr;
+extern char *server_samurai_version_string_ptr;
+
 extern int mysqld_main(int argc, char **argv);
 
 #ifdef _WIN32
