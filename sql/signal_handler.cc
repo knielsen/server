@@ -207,6 +207,9 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   my_safe_printf_stderr("Server version: %s source revision: %s\n\n",
                         server_version, SOURCE_REVISION);
 
+  my_safe_printf_stderr("version_commit_hash=%s\n", server_version_commit_hash_ptr);
+  my_safe_printf_stderr("samurai_version=%s\n", server_samurai_version_string_ptr);
+
 #ifdef WITH_WSREP
   Wsrep_server_state::handle_fatal_signal();
 #endif /* WITH_WSREP */
