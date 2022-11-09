@@ -3518,6 +3518,12 @@ static Sys_var_ulonglong Sys_snc_lock_memory_target(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_snc_lock_memory_target));
 
+static Sys_var_mybool Sys_snc_enable_mdev29833(
+       "snc_enable_mdev29833",
+       "Enable fix for MDEV-29833:Deadlock between InnoDB statistics update and BLOB insert",
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(snc_enable_mdev29833),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {

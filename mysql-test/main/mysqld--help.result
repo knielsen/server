@@ -1279,6 +1279,9 @@ The following specify which files/extra groups are read (specified before remain
  --snc-default-lock-expiration=# 
  Default expiration time a session can hold a ServiceNow
  lock for (seconds)
+ --snc-enable-mdev29833 
+ Enable fix for MDEV-29833:Deadlock between InnoDB
+ statistics update and BLOB insert
  --snc-lock-memory-target=# 
  Target amount of memory for the ServiceNow lock memory
  pool.
@@ -1791,6 +1794,7 @@ slow-query-log FALSE
 sn-order-by-limit-optimize-level 2
 sn-order-by-limit-row-threshold 300000
 snc-default-lock-expiration 120
+snc-enable-mdev29833 FALSE
 snc-lock-memory-target 1073741824
 snc-master-ddl-repl-subdomain-id 0
 snc-slave-ddl-repl-subdomain-id 0

@@ -18,6 +18,7 @@ Variable_name	Value
 sn_order_by_limit_optimize_level	2
 sn_order_by_limit_row_threshold	300000
 snc_default_lock_expiration	120
+snc_enable_mdev29833	OFF
 snc_lock_memory_target	1073741824
 snc_master_ddl_repl_subdomain_id	0
 snc_slave_ddl_repl_subdomain_id	0

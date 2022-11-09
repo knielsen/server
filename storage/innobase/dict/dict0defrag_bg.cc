@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, MariaDB Corporation.
+Copyright (c) 2016, 2022, MariaDB Corporation.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,6 +45,7 @@ by background defragmentation. */
 defrag_pool_t			defrag_pool;
 
 extern bool dict_stats_start_shutdown;
+extern my_bool snc_enable_mdev29833;
 
 /*****************************************************************//**
 Initialize the defrag pool, called once during thread initialization. */
@@ -280,7 +281,16 @@ dict_stats_save_defrag_stats(
 	ulint	n_leaf_pages;
 	ulint	n_leaf_reserved;
 	mtr.start();
-	mtr_s_lock_index(index, &mtr);
+
+	if (snc_enable_mdev29833)
+	{
+		mtr_sx_lock_index(index, &mtr);
+	}
+	else
+	{
+		mtr_s_lock_index(index, &mtr);
+	}
+
 	n_leaf_reserved = btr_get_size_and_reserved(index, BTR_N_LEAF_PAGES,
 						    &n_leaf_pages, &mtr);
 	mtr.commit();

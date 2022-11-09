@@ -236,6 +236,7 @@ extern ulong snc_default_lock_expiration;
 extern ulonglong snc_lock_memory_target;
 extern uint32 snc_master_ddl_repl_subdomain_id;
 extern uint32 snc_slave_ddl_repl_subdomain_id;
+extern my_bool snc_enable_mdev29833;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern uint max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
