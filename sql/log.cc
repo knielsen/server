@@ -1200,8 +1200,16 @@ bool Log_to_file_event_handler::
   log_error(enum loglevel level, const char *format,
             va_list args)
 {
-  return vprint_msg_to_log(level, format, args);
+  return vprint_msg_to_log(stderr, level, format, args);
 }
+
+#ifdef HAVE_REPLICATION
+bool Log_to_file_event_handler::log_slave_retry(const char *format, va_list args)
+{
+  DBUG_ASSERT(slave_retries_file);
+  return vprint_msg_to_log(slave_retries_file, NO_LEVEL, format, args);
+}
+#endif
 
 void Log_to_file_event_handler::init_pthread_objects()
 {
@@ -1315,6 +1323,14 @@ bool LOGGER::error_log_print(enum loglevel level, const char *format,
 
   return error;
 }
+
+
+#ifdef HAVE_REPLICATION
+bool LOGGER::slave_retries_print(const char *format, va_list args)
+{
+  return slave_retries_file ? file_log_handler->log_slave_retry(format, args) : false;
+}
+#endif
 
 
 void LOGGER::cleanup_base()
@@ -7745,6 +7761,20 @@ int error_log_print(enum loglevel level, const char *format,
 }
 
 
+#ifdef HAVE_REPLICATION
+bool slave_retries_print(const char *format, ...)
+{
+  va_list args;
+  bool error;
+  if (!slave_retries_file)
+    return false;
+  va_start(args, format);
+  error= logger.slave_retries_print(format, args);
+  va_end(args);
+  return error;
+}
+#endif
+
 bool slow_log_print(THD *thd, const char *query, uint query_length,
                     ulonglong current_utime)
 {
@@ -10138,25 +10168,26 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 
 #ifndef EMBEDDED_LIBRARY
 #ifndef _WIN32
-#define fprintf_stderr(format, ...) fprintf(stderr, format, __VA_ARGS__)
+#define fprintf_file(file, format, ...) fprintf(file, format, __VA_ARGS__)
 #else
 /*
  On Windows, if FILE* is unbuffered, fprintf() writes output byte by byte.
  This is suboptimal for printing to error log, we want full message at once.
 */
-#define fprintf_stderr(format, ...)                                           \
+#define fprintf_file(file, format, ...)                                       \
   do                                                                          \
   {                                                                           \
     char buf[256];                                                            \
     size_t len= snprintf(buf, sizeof(buf), format, __VA_ARGS__);              \
     if (len >= sizeof(buf))                                                   \
-      fprintf(stderr, format, __VA_ARGS__);                                   \
+      fprintf(file, format, __VA_ARGS__);                                     \
     else                                                                      \
-      fwrite(buf, len, 1, stderr);                                            \
+      fwrite(buf, len, 1, file);                                              \
   } while (0)
 #endif
 
-static void print_buffer_to_file(enum loglevel level, const char *buffer,
+static void print_buffer_to_file(FILE *file,
+                                 enum loglevel level, const char *buffer,
                                  size_t length)
 {
   time_t skr;
@@ -10189,7 +10220,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 
-  fprintf_stderr( "%d-%02d-%02d %2d:%02d:%02d %lu [%s] %.*s%.*s\n",
+  fprintf_file(file, "%d-%02d-%02d %2d:%02d:%02d [T%lu] %s%.*s%.*s\n",
           start->tm_year + 1900,
           start->tm_mon+1,
           start->tm_mday,
@@ -10197,12 +10228,12 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
           start->tm_min,
           start->tm_sec,
           (unsigned long) (thd ? thd->thread_id : 0),
-          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "Warning" : "Note"),
+          (level == ERROR_LEVEL ? "[ERROR] " : level == WARNING_LEVEL ?
+           "[Warning] " : level == INFORMATION_LEVEL ? "[Note] " : ""),
           (int) tag_length, tag,
           (int) length, buffer);
 
-  fflush(stderr);
+  fflush(file);
 
 #ifdef WITH_WSREP
   if (level <= WARNING_LEVEL)
@@ -10234,17 +10265,18 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
     signature to be compatible with other logging routines, which could
     return an error (e.g. logging to the log tables)
 */
-int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
+int vprint_msg_to_log(FILE *file, enum loglevel level, const char *format, va_list args)
 {
-  char   buff[1024];
+  char   buff[4096];
   size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
   length= my_vsnprintf(buff, sizeof(buff), format, args);
-  print_buffer_to_file(level, buff, length);
+  print_buffer_to_file(file, level, buff, length);
 
 #ifdef _WIN32
-  print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+  if (file == stderr)
+    print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
 
   DBUG_RETURN(0);
@@ -10263,6 +10295,22 @@ void sql_print_error(const char *format, ...)
 
   DBUG_VOID_RETURN;
 }
+
+
+#ifdef HAVE_REPLICATION
+void sql_print_error2(const char *format, ...)
+{
+  va_list args;
+  DBUG_ENTER("sql_print_error");
+
+  va_start(args, format);
+  error_log_print(ERROR_LEVEL, format, args);
+  slave_retries_print(format, args);
+  va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+#endif
 
 
 void sql_print_warning(const char *format, ...) 

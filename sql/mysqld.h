@@ -174,6 +174,12 @@ extern char *opt_logname, *opt_slow_logname, *opt_bin_logname,
 extern char *opt_binlog_index_name;
 extern my_bool opt_binlog_legacy_event_pos;
 
+#ifdef HAVE_REPLICATION
+extern char *opt_slave_retries_log;
+extern FILE *slave_retries_file;
+extern uint opt_slave_retries_max_log;
+#endif
+
 /* System Versioning begin */
 enum vers_system_time_t
 {
@@ -777,6 +783,7 @@ enum options_mysqld
   OPT_LOG_BASENAME,
   OPT_LOG_ERROR,
   OPT_LOG_SLOW_FILTER,
+  OPT_SLAVE_RETRIES_LOG,
   OPT_LOWER_CASE_TABLE_NAMES,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD_ADD,

@@ -277,6 +277,7 @@ TMLockGuard::TMLockGuard(lock_sys_t::hash_table &hash, page_id_t id)
   cell_= hash.cell_get(id_fold);
   hash.latch(cell_)->acquire();
 }
+extern "C" size_t thd_deadlock_buf(MYSQL_THD thd, char **buf);
 
 /** Pretty-print a table lock.
 @param[in,out]	file	output stream
@@ -7075,7 +7076,7 @@ namespace Deadlock
   /** rewind(3) the file used for storing the latest detected deadlock and
   print a heading message to stderr if printing of all deadlocks to stderr
   is enabled. */
-  static void start_print()
+  static FILE *start_print(const trx_t *victim_trx)
   {
     lock_sys.assert_locked();
 
@@ -7085,20 +7086,37 @@ namespace Deadlock
     if (srv_print_all_deadlocks)
       ib::info() << "Transactions deadlock detected,"
                     " dumping detailed information.";
+
+    FILE *notify_file= nullptr;
+    char *buf;
+    size_t len;
+    THD *thd= victim_trx->mysql_thd;
+    if (thd)
+    {
+      len= thd_deadlock_buf(thd, &buf);
+      if (len)
+      {
+        notify_file = fmemopen(buf, len, "w");
+      }
+    }
+
+    return notify_file;
   }
 
   /** Print a message to the deadlock file and possibly to stderr.
   @param msg message to print */
-  static void print(const char *msg)
+  static void print(FILE *notify_file, const char *msg)
   {
     fputs(msg, lock_latest_err_file);
     if (srv_print_all_deadlocks)
       ib::info() << msg;
+    if (notify_file)
+      fputs(msg, notify_file);
   }
 
   /** Print transaction data to the deadlock file and possibly to stderr.
   @param trx transaction */
-  static void print(const trx_t &trx)
+  static void print(FILE *notify_file, const trx_t &trx)
   {
     lock_sys.assert_locked();
 
@@ -7111,11 +7129,13 @@ namespace Deadlock
 
     if (srv_print_all_deadlocks)
       trx_print_low(stderr, &trx, n_rec_locks, n_trx_locks, heap_size);
+    if (notify_file)
+      trx_print_low(notify_file, &trx, n_rec_locks, n_trx_locks, heap_size);
   }
 
   /** Print lock data to the deadlock file and possibly to stderr.
   @param lock record or table type lock */
-  static void print(const lock_t &lock)
+  static void print(FILE *notify_file, const lock_t &lock)
   {
     lock_sys.assert_locked();
 
@@ -7126,6 +7146,8 @@ namespace Deadlock
 
       if (srv_print_all_deadlocks)
         lock_rec_print(stderr, &lock, mtr);
+      if (notify_file)
+        lock_rec_print(notify_file, &lock, mtr);
     }
     else
     {
@@ -7133,6 +7155,8 @@ namespace Deadlock
 
       if (srv_print_all_deadlocks)
         lock_table_print(stderr, &lock);
+      if (notify_file)
+        lock_table_print(notify_file, &lock);
     }
   }
 
@@ -7182,6 +7206,7 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
     static const char rollback_msg[]= "*** WE ROLL BACK TRANSACTION (%u)\n";
     char buf[9 + sizeof rollback_msg];
     trx_t *victim= nullptr;
+    FILE *notify_file= nullptr;
 
     /* Here, lock elision does not make sense, because
     for the output we are going to invoke system calls,
@@ -7247,7 +7272,7 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
         break;
       case REPORT_BASIC:
       case REPORT_FULL:
-        start_print();
+        notify_file= start_print(victim);
         l= 0;
 
         for (trx_t *next= cycle;;)
@@ -7258,10 +7283,10 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
           const lock_t *wait_lock= next->lock.wait_lock;
           ut_ad(wait_lock);
           snprintf(buf, sizeof buf, "\n*** (%u) TRANSACTION:\n", ++l);
-          print(buf);
-          print(*next);
-          print("*** WAITING FOR THIS LOCK TO BE GRANTED:\n");
-          print(*wait_lock);
+          print(notify_file, buf);
+          print(notify_file, *next);
+          print(notify_file, "*** WAITING FOR THIS LOCK TO BE GRANTED:\n");
+          print(notify_file, *wait_lock);
           if (r == REPORT_BASIC);
           else if (wait_lock->is_table())
           {
@@ -7269,9 +7294,9 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
                 UT_LIST_GET_FIRST(wait_lock->un_member.tab_lock.table->locks))
             {
               ut_ad(!lock->is_waiting());
-              print("*** CONFLICTING WITH:\n");
+              print(notify_file, "*** CONFLICTING WITH:\n");
               do
-                print(*lock);
+                print(notify_file, *lock);
               while ((lock= UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) &&
                      !lock->is_waiting());
             }
@@ -7290,9 +7315,9 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
               if (!lock_rec_get_nth_bit(lock, heap_no))
                 lock= lock_rec_get_next_const(heap_no, lock);
               ut_ad(!lock->is_waiting());
-              print("*** CONFLICTING WITH:\n");
+              print(notify_file, "*** CONFLICTING WITH:\n");
               do
-                print(*lock);
+                print(notify_file, *lock);
               while ((lock= lock_rec_get_next_const(heap_no, lock)) &&
                      !lock->is_waiting());
             }
@@ -7303,7 +7328,9 @@ and less modified rows. Bit 0 is used to prefer orig_trx in case of a tie.
             break;
         }
         snprintf(buf, sizeof buf, rollback_msg, victim_pos);
-        print(buf);
+        print(notify_file, buf);
+        if (notify_file)
+          fclose(notify_file);
       }
 
       DBUG_EXECUTE_IF("innodb_deadlock_victim_self", victim= trx;);
