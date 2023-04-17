@@ -1276,6 +1276,9 @@ public:
   ATTRIBUTE_FORMAT(printf, 3, 0)
   bool log_error(enum loglevel level, const char *format,
                          va_list args) override;
+#ifdef HAVE_REPLICATION
+  virtual bool log_slave_retry(const char *format, va_list args);
+#endif
   bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host, size_t user_host_len, my_thread_id thread_id,
                            const char *command_type, size_t command_type_len,
                            const char *sql_text, size_t sql_text_len,
@@ -1333,6 +1336,9 @@ public:
   ATTRIBUTE_FORMAT(printf, 3, 0) // 1st arg is the implicit `this`
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
+#ifdef HAVE_REPLICATION
+  bool slave_retries_print(const char *format, va_list args);
+#endif
   bool slow_log_print(THD *thd, const char *query, size_t query_length,
                       ulonglong current_utime);
   ATTRIBUTE_FORMAT(printf, 4, 0)
@@ -1373,9 +1379,12 @@ enum enum_binlog_format {
 int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);
 
-int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
-  ATTRIBUTE_FORMAT(printf, 2, 0);
+int vprint_msg_to_log(FILE *file, enum loglevel level, const char *format, va_list args)
+  ATTRIBUTE_FORMAT(printf, 3, 0);
 void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+#ifdef HAVE_REPLICATION
+void sql_print_error2(const char *format, ...);
+#endif
 void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -1387,6 +1396,10 @@ extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
                     va_list args) ATTRIBUTE_FORMAT(printf, 2, 0);
+
+#ifdef HAVE_REPLICATION
+bool slave_retries_print(const char *format, ...);
+#endif
 
 bool slow_log_print(THD *thd, const char *query, uint query_length,
                     ulonglong current_utime);

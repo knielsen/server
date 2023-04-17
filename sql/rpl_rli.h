@@ -950,6 +950,7 @@ struct rpl_group_info
   Query_log_event *start_alter_ev;
   bool direct_commit_alter;
   start_alter_info *sa_info;
+  char deadlock_info[4096];
 
   rpl_group_info(Relay_log_info *rli_);
   ~rpl_group_info();

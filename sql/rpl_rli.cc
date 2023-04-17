@@ -2165,6 +2165,7 @@ rpl_group_info::reinit(Relay_log_info *rli)
   start_alter_ev= NULL;
   direct_commit_alter= false;
   commit_orderer.reinit();
+  *deadlock_info= 0;
 }
 
 rpl_group_info::rpl_group_info(Relay_log_info *rli)
@@ -2345,6 +2346,8 @@ void rpl_group_info::cleanup_context(THD *thd, bool error, bool keep_domain_owne
   */
   reset_row_stmt_start_timestamp();
   unset_long_find_row_note_printed();
+
+  *deadlock_info= 0;
 
   DBUG_EXECUTE_IF("inject_sleep_gtid_100_x_x", {
       if (current_gtid.domain_id == 100)
