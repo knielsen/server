@@ -149,6 +149,9 @@ ulong	innodb_compression_algorithm;
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir;
 
+ulonglong srv_log_distress_margin;
+ulonglong srv_log_distress_margin_pct;
+
 /** The InnoDB redo log file size, or 0 when changing the redo log format
 at startup (while disallowing writes to the redo log). */
 ulonglong	srv_log_file_size;
@@ -892,6 +895,7 @@ srv_export_innodb_status(void)
 	}
 	mysql_mutex_unlock(&buf_pool.mutex);
 
+	export_vars.innodb_log_is_in_distress = log_is_in_distress();
 	export_vars.innodb_max_trx_id = trx_sys.get_max_trx_id();
 	export_vars.innodb_history_list_length = trx_sys.history_size_approx();
 

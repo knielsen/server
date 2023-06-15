@@ -221,6 +221,8 @@ constexpr uint32_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES= (10U << 20) /
 
 extern char*	srv_log_group_home_dir;
 
+extern ulonglong srv_log_distress_margin;
+extern ulonglong srv_log_distress_margin_pct;
 /** The InnoDB redo log file size, or 0 when changing the redo log format
 at startup (while disallowing writes to the redo log). */
 extern ulonglong	srv_log_file_size;
@@ -597,6 +599,7 @@ struct export_var_t{
 	lsn_t innodb_lsn_current;
 	lsn_t innodb_lsn_flushed;
 	lsn_t innodb_lsn_last_checkpoint;
+	my_bool innodb_log_is_in_distress;
 	trx_id_t innodb_max_trx_id;
 #ifdef BTR_CUR_HASH_ADAPT
 	ulint innodb_mem_adaptive_hash;

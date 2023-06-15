@@ -1,0 +1,26 @@
+--source include/have_innodb.inc
+select @@innodb_log_distress_margin;
+let $save_log_distress_margin=`select @@innodb_log_distress_margin`;
+set global innodb_log_distress_margin = 8 * 1024 * 1024;
+select @@innodb_log_distress_margin;
+let $save_log_distress_margin_pct=`select @@innodb_log_distress_margin_pct`;
+set global innodb_log_distress_margin_pct = 25;
+select @@innodb_log_distress_margin;
+create table t1 (n int) engine=innodb;
+begin;
+let $i=1000;
+--disable_query_log
+while ($i)
+{
+--eval insert into t1 values($i);
+dec $i;
+}
+--enable_query_log
+commit;
+select * from information_schema.global_status where variable_name='innodb_log_is_in_distress';
+# TODO: this works in this test, but it is it deterministic?
+set global innodb_log_distress_margin = 0;
+select * from information_schema.global_status where variable_name='innodb_log_is_in_distress';
+drop table t1;
+--eval set global innodb_log_distress_margin_pct = $save_log_distress_margin_pct;
+--eval set global innodb_log_distress_margin = $save_log_distress_margin;

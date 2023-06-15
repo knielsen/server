@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "dict0load.h"
+#include "log0log.h"
 #include <mysql/service_thd_mdl.h>
 #include <mysql/service_wsrep.h>
 #include "log.h"
@@ -355,6 +356,11 @@ inline dberr_t purge_sys_t::iterator::free_history_rseg(trx_rseg_t &rseg) const
   value should always fit in a register and be correctly aligned. */
   const auto last_page= rseg.space->free_limit;
 
+  if (log_is_in_distress())
+  {
+    return DB_SUCCESS;
+  }
+
   mtr.start();
 
   dberr_t err;
@@ -390,7 +396,7 @@ loop:
     buf_page_get_gen(page_id_t(rseg.space->id, hdr_addr.page),
                      0, RW_X_LATCH, nullptr, BUF_GET_POSSIBLY_FREED,
                      &mtr, &err);
-  if (!b)
+  if (!b || log_is_in_distress())
     goto func_exit;
 
   const trx_id_t undo_trx_no=
