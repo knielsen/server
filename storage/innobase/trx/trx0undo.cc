@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
+#include "log0log.h"
 #include "trx0rseg.h"
 #include "log.h"
 
@@ -903,9 +904,10 @@ trx_undo_truncate_start(
 
 	ut_ad(rseg->is_persistent());
 
-	if (!limit) {
+	if (!limit || log_is_in_distress()) {
 		return DB_SUCCESS;
 	}
+
 loop:
 	mtr.start();
 
@@ -922,7 +924,7 @@ done:
 
 	last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no,
 					      hdr_offset);
-	if (trx_undo_rec_get_undo_no(last_rec) >= limit) {
+	if (trx_undo_rec_get_undo_no(last_rec) >= limit || log_is_in_distress()) {
 		goto done;
 	}
 

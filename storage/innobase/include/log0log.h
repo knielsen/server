@@ -38,6 +38,10 @@ using st_::span;
 static const char LOG_FILE_NAME_PREFIX[] = "ib_logfile";
 static const char LOG_FILE_NAME[] = "ib_logfile0";
 
+
+bool
+log_is_in_distress();
+
 /** Composes full path for a redo log file
 @param[in]	filename	name of the redo log file
 @return path with log file name*/

@@ -989,6 +989,7 @@ static SHOW_VAR innodb_status_variables[]= {
    SHOW_ULONGLONG},
   {"master_thread_active_loops", &srv_main_active_loops, SHOW_SIZE_T},
   {"master_thread_idle_loops", &srv_main_idle_loops, SHOW_SIZE_T},
+  {"log_is_in_distress", &export_vars.innodb_log_is_in_distress, SHOW_LONG},
   {"max_trx_id", &export_vars.innodb_max_trx_id, SHOW_ULONGLONG},
 #ifdef BTR_CUR_HASH_ADAPT
   {"mem_adaptive_hash", &export_vars.innodb_mem_adaptive_hash, SHOW_SIZE_T},
@@ -4087,6 +4088,11 @@ skip_buffering_tweak:
 
   if (!tpool::supports_native_aio())
     srv_use_native_aio= FALSE;
+
+
+  if (!srv_log_distress_margin)
+    srv_log_distress_margin=
+      srv_log_distress_margin_pct * srv_log_file_size / 100;
 
   DBUG_RETURN(0);
 }
@@ -17351,6 +17357,15 @@ ha_innobase::check_if_incompatible_data(
 	return(COMPATIBLE_DATA_YES);
 }
 
+static void innodb_log_distress_margin_pct_update(
+    THD* thd,
+    st_mysql_sys_var*, void*,
+    const void* save)
+{
+	srv_log_distress_margin_pct = *static_cast<const ulonglong*>(save);
+	srv_log_distress_margin = srv_log_distress_margin_pct * srv_log_file_size / 100;
+}
+
 /****************************************************************//**
 Update the system variable innodb_io_capacity_max using the "saved"
 value. This function is registered as a callback with MySQL. */
@@ -19489,6 +19504,16 @@ static MYSQL_SYSVAR_BOOL(data_file_write_through, fil_system.write_through,
   "Whether each write to data files writes through",
   nullptr, innodb_data_file_write_through_update, FALSE);
 
+static MYSQL_SYSVAR_ULONGLONG(log_distress_margin, srv_log_distress_margin,
+  PLUGIN_VAR_RQCMDARG,
+  "If the log capacity minus the checkpoint age reaches this value, delay dangerous purge thread operations that could cause a deadlock",
+  NULL, NULL, 0, 0, ULLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(log_distress_margin_pct, srv_log_distress_margin_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "If the log capacity minus the checkpoint age reaches this value, delay dangerous purge thread operations that could cause a deadlock. The value is in terms of the total redo log space size",
+  NULL, innodb_log_distress_margin_pct_update, 100, 0, 100, 0);
+
 static MYSQL_SYSVAR_ULONGLONG(log_file_size, srv_log_file_size,
   PLUGIN_VAR_RQCMDARG,
   "Redo log size in bytes",
@@ -19915,6 +19940,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(deadlock_report),
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
+  MYSQL_SYSVAR(log_distress_margin),
+  MYSQL_SYSVAR(log_distress_margin_pct),
   MYSQL_SYSVAR(log_file_mmap),
 #if defined __linux__ || defined _WIN32
   MYSQL_SYSVAR(log_file_buffering),

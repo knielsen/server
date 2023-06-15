@@ -67,6 +67,14 @@ log_t	log_sys;
 #define LOG_BUF_FLUSH_MARGIN	((4 * 4096) /* cf. log_t::append_prepare() */ \
 				 + (4U << srv_page_size_shift))
 
+bool log_is_in_distress()
+{
+	bool res;
+	res = log_sys.get_lsn_approx() - log_sys.last_checkpoint_lsn > srv_log_distress_margin;
+	return res;
+}
+
+
 void log_t::set_capacity() noexcept
 {
 	ut_ad(log_sys.latch_have_wr());
