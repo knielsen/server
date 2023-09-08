@@ -4963,6 +4963,12 @@ ibuf_set_bitmap_for_bulk_load(
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
                                                space->zip_size(), &mtr);
 
+	if (ibuf_bitmap_page_get_bits(bitmap_page, block->page.id,
+				      block->physical_size(),
+				      IBUF_BITMAP_BUFFERED, &mtr)) {
+		ibuf_delete_recs(block->page.id);
+	}
+
 	free_val = reset ? 0 : ibuf_index_page_calc_free(block);
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, block->page.id, block->physical_size(),
