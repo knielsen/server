@@ -576,6 +576,7 @@ static dberr_t trx_rseg_mem_restore(trx_rseg_t *rseg, mtr_t *mtr)
 
 /** Read binlog metadata from the TRX_SYS page, in case we are upgrading
 from MySQL or a MariaDB version older than 10.3.5. */
+__attribute__((unused))
 static void trx_rseg_init_binlog_info(const page_t* page)
 {
 	if (mach_read_from_4(TRX_SYS + TRX_SYS_MYSQL_LOG_INFO
@@ -629,7 +630,9 @@ dberr_t trx_rseg_array_init()
 				max_trx_id = mach_read_from_8(
 					TRX_SYS + TRX_SYS_TRX_ID_STORE
 					+ sys->page.frame);
-				trx_rseg_init_binlog_info(sys->page.frame);
+				// PRB1699220 -- if we initialize from the metadata
+				// in TRX_SYS, we may read a stale file and a position.
+				//trx_rseg_init_binlog_info(sys->page.frame);
 #ifdef WITH_WSREP
 				if (trx_rseg_init_wsrep_xid(
 					    sys->page.frame, trx_sys.recovered_wsrep_xid)) {
