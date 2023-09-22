@@ -42,7 +42,10 @@ send CALL gen_load();
 --echo *** Doing backup...
 --exec $XTRABACKUP --defaults-file=$MYSQLTEST_VARDIR/my.cnf --backup --target-dir=$basedir --no-lock
 --echo *** Doing prepare...
---exec $XTRABACKUP --prepare --rollback-xa --binlog-info=1 --target-dir=$basedir
+# The fake_old_trx_sys_binlog_pos DBUG injection tests that we correctly
+# handle a pre-10.3.5 position from TRX_SYS versus the new style saved in
+# rollback segments.
+--exec $XTRABACKUP --prepare --dbug=+d,fake_old_trx_sys_binlog_pos --rollback-xa --binlog-info=1 --target-dir=$basedir
 
 --echo *** Stop the background load...
 UPDATE t2 SET val=1;

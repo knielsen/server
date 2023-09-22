@@ -460,7 +460,10 @@ trx_rseg_mem_restore(trx_rseg_t* rseg, trx_id_t& max_trx_id, mtr_t* mtr)
 			compile_time_assert(TRX_RSEG_BINLOG_NAME_LEN == sizeof
 					    trx_sys.recovered_binlog_filename);
 
-			int cmp = *trx_sys.recovered_binlog_filename
+			/* Always prefer a position from rollback segment over
+			a legacy position from before version 10.3.5. */
+			int cmp = *trx_sys.recovered_binlog_filename &&
+				  !trx_sys.recovered_binlog_is_legacy_pos
 				? strncmp(binlog_name,
 					  trx_sys.recovered_binlog_filename,
 					  TRX_RSEG_BINLOG_NAME_LEN)
@@ -481,6 +484,7 @@ trx_rseg_mem_restore(trx_rseg_t* rseg, trx_id_t& max_trx_id, mtr_t* mtr)
 					trx_sys.recovered_binlog_offset
 						= binlog_offset;
 				}
+				trx_sys.recovered_binlog_is_legacy_pos= false;
 			}
 
 #ifdef WITH_WSREP
@@ -552,7 +556,19 @@ static void trx_rseg_init_binlog_info(const page_t* page)
 		trx_sys.recovered_binlog_offset = mach_read_from_8(
 			TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_OFFSET
 			+ TRX_SYS + page);
+		trx_sys.recovered_binlog_is_legacy_pos= true;
 	}
+
+	DBUG_EXECUTE_IF("fake_old_trx_sys_binlog_pos",
+	  {
+	    /*
+	      Fake an old position found in TRX_SYS page that will compare
+	      larger than one found in rollback segments.
+	    */
+	    strcpy(trx_sys.recovered_binlog_filename, "~~~-bin.999999");
+	    trx_sys.recovered_binlog_offset= 0xffff0000;
+	    trx_sys.recovered_binlog_is_legacy_pos= true;
+	  };);
 
 #ifdef WITH_WSREP
 	trx_rseg_init_wsrep_xid(page, trx_sys.recovered_wsrep_xid);
@@ -567,6 +583,7 @@ trx_rseg_array_init()
 
 	*trx_sys.recovered_binlog_filename = '\0';
 	trx_sys.recovered_binlog_offset = 0;
+	trx_sys.recovered_binlog_is_legacy_pos= false;
 #ifdef WITH_WSREP
 	trx_sys.recovered_wsrep_xid.null();
 	XID wsrep_sys_xid;
