@@ -586,7 +586,9 @@ trx_rseg_array_init()
 				max_trx_id = mach_read_from_8(
 					TRX_SYS + TRX_SYS_TRX_ID_STORE
 					+ sys->frame);
-				trx_rseg_init_binlog_info(sys->frame);
+				// PRB1699220 -- if we initialize from the metadata
+				// in TRX_SYS, we may read a stale file and a position.
+				//trx_rseg_init_binlog_info(sys->frame);
 #ifdef WITH_WSREP
 				wsrep_sys_xid.set(&trx_sys.recovered_wsrep_xid);
 #endif
