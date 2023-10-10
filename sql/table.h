@@ -835,6 +835,8 @@ struct TABLE_SHARE
     binary logging or for tables that doesn't support statement or row logging
    */
   bool no_replicate;
+  enum enum_binlog_format_preference { NONE=0, PREFER_ROW_FORMAT, FORCE_ROW_FORMAT };
+  enum_binlog_format_preference binlog_format_preference;
   bool crashed;
   bool is_view;
   bool can_cmp_whole_record;
