@@ -3521,6 +3521,16 @@ int TABLE_SHARE::init_from_binary_frm_image(THD *thd, bool write,
   share->db_plugin= se_plugin;
   delete handler_file;
 
+  share->binlog_format_preference= TABLE_SHARE::NONE;
+  if (share->comment.str)
+  {
+    if (strstr(share->comment.str, "[sn:prefer_row_binlog_format]"))
+      share->binlog_format_preference= TABLE_SHARE::PREFER_ROW_FORMAT;
+    else
+    if (strstr(share->comment.str, "[sn:force_row_binlog_format]"))
+      share->binlog_format_preference= TABLE_SHARE::FORCE_ROW_FORMAT;
+  }
+
   share->error= OPEN_FRM_OK;
   thd->status_var.opened_shares++;
   thd->mem_root= old_root;
