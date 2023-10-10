@@ -6795,6 +6795,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     bool found_first_not_own_table= FALSE;
     bool has_write_tables_with_unsafe_statements= FALSE;
     bool blackhole_table_found= 0;
+    TABLE_SHARE::enum_binlog_format_preference binlog_format_preference= TABLE_SHARE::NONE;
 
     /*
       A pointer to a previous table that was changed.
@@ -6870,6 +6871,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           tbl->table_name.str, flags));
+
+      if (share->binlog_format_preference > binlog_format_preference)
+      {
+        binlog_format_preference = share->binlog_format_preference;
+      }
 
       if (share->no_replicate)
       {
@@ -6997,6 +7003,19 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (lex->requires_prelocking() &&
           has_auto_increment_write_tables_not_first)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
+
+      switch (binlog_format_preference)
+      {
+        case TABLE_SHARE::NONE:
+          // No changes needed
+          break;
+        case TABLE_SHARE::PREFER_ROW_FORMAT:
+          set_current_stmt_binlog_format_row_if_mixed();
+          break;
+        case TABLE_SHARE::FORCE_ROW_FORMAT:
+          set_current_stmt_binlog_format_row();
+          break;
+      }
     }
 
     DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
