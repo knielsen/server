@@ -175,10 +175,31 @@ extern char *opt_binlog_index_name;
 extern my_bool opt_binlog_legacy_event_pos;
 
 #ifdef HAVE_REPLICATION
-extern char *opt_slave_retries_log;
-extern FILE *slave_retries_file;
+extern char default_slave_retries_path[FN_REFLEN];
+extern bool opt_slave_retries;
+extern char *opt_slave_retries_path;
 extern uint opt_slave_retries_max_log;
 #endif
+
+class Slave_retries_file
+{
+  FILE *file;
+  mysql_mutex_t mutex;
+  bool inited;
+
+public:
+  Slave_retries_file() : file(NULL), inited(false) {}
+  void init();
+  void destroy();
+  FILE *get() { return file; }
+  bool open();
+  void close();
+  bool acquire();
+  void release();
+  void flush();
+};
+extern Slave_retries_file slave_retries_file;
+
 
 /* System Versioning begin */
 enum vers_system_time_t
@@ -783,6 +804,7 @@ enum options_mysqld
   OPT_LOG_BASENAME,
   OPT_LOG_ERROR,
   OPT_LOG_SLOW_FILTER,
+  OPT_SLAVE_RETRIES,
   OPT_SLAVE_RETRIES_LOG,
   OPT_LOWER_CASE_TABLE_NAMES,
   OPT_PLUGIN_LOAD,

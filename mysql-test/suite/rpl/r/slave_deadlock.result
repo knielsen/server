@@ -1,17 +1,8 @@
---source include/have_debug.inc
---source include/have_innodb.inc
---source include/have_binlog_format_statement.inc
-
-# Note that test requires big enough --debug-sync-timeout unfair scheduling at high load.
-# slave_deadlock.opt sets this to 1 hour
-
---let $rpl_topology=1->2
---source include/rpl_init.inc
-
---echo #
---echo # MDEV-30973 Enhance output of innodb deadlocks (SAMU-124, SAMU-131)
---echo #
---connection server_2
+include/rpl_init.inc [topology=1->2]
+#
+# MDEV-30973 Enhance output of innodb deadlocks (SAMU-124, SAMU-131)
+#
+connection server_2;
 SET @old_dbug= @@global.debug_dbug;
 set @old_parallel_threads= @@global.slave_parallel_threads;
 set @old_parallel_mode= @@global.slave_parallel_mode;
@@ -20,151 +11,110 @@ set @old_innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 set @old_log_slave_retries= @@global.log_slave_retries;
 set @old_log_slave_retries_file= @@global.log_slave_retries_file;
 set @old_log_slave_retries_max= @@global.log_slave_retries_max;
---source include/stop_slave.inc
+include/stop_slave.inc
 change master to master_use_gtid= slave_pos;
 set global slave_parallel_threads= 10;
-# We need "optimistic" to cause an InnoDB deadlock (otherwise we get a deadlock kill).
 set global slave_parallel_mode= conservative;
 set global slave_transaction_retries= 4;
-
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 select @@log_slave_retries retries, @@log_slave_retries_max max, @@log_slave_retries_file file;
+retries	max	file
+0	0	MYSQLTEST_VARDIR/log/mysqld.2-retries.err
 set global log_slave_retries= 1;
 set global log_slave_retries_max= 20;
---error ER_NOT_SUPPORTED_YET
 set global log_slave_retries_file= "abcd";
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+ERROR 42000: This version of MariaDB doesn't yet support 'modifying while log_slave_retries is ON'
 select @@log_slave_retries retries, @@log_slave_retries_max max, @@log_slave_retries_file file;
+retries	max	file
+1	20	MYSQLTEST_VARDIR/log/mysqld.2-retries.err
 set global log_slave_retries= OFF;
 set global log_slave_retries_file= "abcdef";
 select @@log_slave_retries retries, @@log_slave_retries_max max, @@log_slave_retries_file file;
+retries	max	file
+0	20	abcdef
 set global log_slave_retries_file= default;
 call mtr.add_suppression("Open of log_slave_retries");
 set global log_slave_retries= ON;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 select @@log_slave_retries retries, @@log_slave_retries_max max, @@log_slave_retries_file file;
+retries	max	file
+1	20	MYSQLTEST_VARDIR/log/mysqld-retries.err
 set global log_slave_retries= off;
-let $logfile= `select @@log_slave_retries_file`;
---remove_file $logfile
 set global log_slave_retries_file= @old_log_slave_retries_file;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 select @@log_slave_retries retries, @@log_slave_retries_max max, @@log_slave_retries_file file;
+retries	max	file
+0	20	MYSQLTEST_VARDIR/log/mysqld.2-retries.err
 set global log_slave_retries= ON;
-
---source include/start_slave.inc
+include/start_slave.inc
 set global innodb_print_all_deadlocks= on;
-
---connection server_1
-
+connection server_1;
 create table t1 (a int primary key, b int) engine innodb;
 insert into t1(a) values (1), (2), (3), (4), (5), (6), (7), (8);
 create table t2 (x int) engine innodb;
 insert into t2 values (1), (2);
-
---save_master_pos
---connection server_2
---sync_with_master
-
-# Create a deadlock on the slave.
-connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connection server_2;
+connect  slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,;
 BEGIN;
 UPDATE t1 SET b=0 WHERE a=2;
-connect (slave3,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connect  slave3,127.0.0.1,root,,test,$SLAVE_MYPORT,;
 BEGIN;
 UPDATE t1 SET b=0 WHERE a=8;
-
---connection server_1
-# Transaction T1.
+connection server_1;
 SET SESSION gtid_domain_id= 1;
 BEGIN;
-# An update that will allow us to pause T1 on the slave.
 UPDATE t1 SET b=1 WHERE a=2;
-# An update that will block T2.
 UPDATE t1 SET b=1 WHERE a=4;
-# An update that will be blocked by T2;
 UPDATE t1 SET b=1 WHERE a=6;
 COMMIT;
-
-# Transaction T2.
 SET SESSION gtid_domain_id= 2;
 BEGIN;
-# An update that will block T1.
 UPDATE t1 SET b=2 WHERE a=6;
-# An update that will allow us to pause T1 on the slave.
 UPDATE t1 SET b=2 WHERE a=8;
-# An update that will be blocked by T1.
 UPDATE t1 SET b=2 WHERE a=4;
 COMMIT;
 SET SESSION gtid_domain_id= DEFAULT;
-
---connection server_2
---let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Command='Slave_worker' AND Info='UPDATE t1 SET b=1 WHERE a=2';
---source include/wait_condition.inc
---let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Command='Slave_worker' AND Info='UPDATE t1 SET b=2 WHERE a=8';
---source include/wait_condition.inc
-
---connection slave2
+connection server_2;
+connection slave2;
 ROLLBACK;
---disconnect slave2
-
---connection server_2
---let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Command='Slave_worker' AND Info='UPDATE t1 SET b=1 WHERE a=6';
---source include/wait_condition.inc
-
---connection slave3
+disconnect slave2;
+connection server_2;
+connection slave3;
 ROLLBACK;
---disconnect slave3
-
---connection server_1
---save_master_pos
---connection server_2
---sync_with_master
-
---source include/stop_slave.inc
+disconnect slave3;
+connection server_1;
+connection server_2;
+include/stop_slave.inc
 set global innodb_lock_wait_timeout= 1;
 set global slave_parallel_mode= optimistic;
---source include/start_slave.inc
+include/start_slave.inc
 set debug_sync="ha_commit_one_phase wait_for retries_at_max";
 set global debug_dbug= "d,rpl_parallel_retries_at_max";
---send select * from t2 for update
-
---connection server_1
+select * from t2 for update;
+connection server_1;
 update t2 set x= 6;
-
---save_master_pos
---connection server_2
---sync_with_master
---disable_result_log
-reap;
---enable_result_log
+connection server_2;
 set global debug_dbug= @old_dbug;
 flush error logs;
-
-let $retries_log= `SELECT @@GLOBAL.log_slave_retries_file`;
-let grep_file= $retries_log;
-let grep_regex= WAITING|Updating;
-let grep_once= \[SUCCESS\];
---replace_regex /\d+/x/ /  / /
---source include/grep.inc
-
-# Cleanup
---source include/stop_slave.inc
---remove_file $retries_log
+MariaDB thread id x, OS thread handle x, query id x, GTID x-x-x Updating
+*** WAITING FOR THIS LOCK TO BE GRANTED:
+MariaDB thread id x, OS thread handle x, query id x, GTID x-x-x Updating
+*** WAITING FOR THIS LOCK TO BE GRANTED:
+MariaDB thread id x, OS thread handle x, query id x, GTID x-x-x Updating
+*** WAITING FOR THIS LOCK TO BE GRANTED:
+MariaDB thread id x, OS thread handle x, query id x, GTID x-x-x Updating
+*** WAITING FOR THIS LOCK TO BE GRANTED:
+x-x-x x:x:x [Tx] [Rx] [SUCCESS] event: x of x log_pos: x GTID: x-x-x query_id: x result: x
+include/stop_slave.inc
 set global slave_parallel_threads= @old_parallel_threads;
 set global slave_parallel_mode= @old_parallel_mode;
 set global slave_transaction_retries= @old_slave_transaction_retries;
 set global innodb_lock_wait_timeout= @old_innodb_lock_wait_timeout;
 set global log_slave_retries= @old_log_slave_retries;
 set global log_slave_retries_max= @old_log_slave_retries_max;
---source include/start_slave.inc
+include/start_slave.inc
 set global innodb_print_all_deadlocks= default;
 set debug_sync= reset;
-
---connection server_1
+connection server_1;
 drop tables t1, t2;
-
 call mtr.add_suppression("Deadlock found when trying to get lock; try restarting transaction");
 call mtr.add_suppression("Sort aborted.*");
 set global innodb_print_all_deadlocks= default;
-
---source include/rpl_end.inc
+include/rpl_end.inc
