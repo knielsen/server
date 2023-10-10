@@ -5934,7 +5934,7 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 extern "C" size_t thd_deadlock_buf(MYSQL_THD thd, char **buf)
 {
 #ifdef HAVE_REPLICATION
-  if (!thd->rgi_slave || !slave_retries_file)
+  if (!thd->rgi_slave || !slave_retries_file.get())
     return 0;
 #endif
   *buf= thd->rgi_slave->deadlock_info;

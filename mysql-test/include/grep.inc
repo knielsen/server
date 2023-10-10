@@ -19,6 +19,15 @@
       }
       print;
     }
+    elsif (exists($ENV{grep_once}) && $ENV{grep_once} ne '' && /$ENV{grep_once}/)
+    {
+      if ($ENV{grep_filter})
+      {
+        eval($ENV{grep_filter});
+      }
+      print;
+      last;
+    }
   }
   close $fh;
 EOF
