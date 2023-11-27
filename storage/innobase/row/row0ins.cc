@@ -216,8 +216,13 @@ row_ins_sec_index_entry_by_modify(
 		commit_inplace_alter_table(). */
 		ut_a(update->n_fields == 0);
 		ut_ad(!dict_index_is_online_ddl(cursor->index));
-		return cursor->index->is_committed()
-			? DB_CORRUPTION : DB_SUCCESS;
+		if (cursor->index->is_committed()) {
+			ib::error() << "Table " << cursor->index->table->name
+				<< " has corrupted index "
+				<< cursor->index->name;
+			return DB_CORRUPTION;
+		}
+		return DB_SUCCESS;
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
