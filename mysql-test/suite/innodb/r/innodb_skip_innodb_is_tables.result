@@ -234,6 +234,13 @@ adaptive_hash_rows_added	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	N
 adaptive_hash_rows_removed	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Adaptive Hash Index rows removed
 adaptive_hash_rows_deleted_no_hash_entry	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows deleted that did not have corresponding Adaptive Hash Index entries
 adaptive_hash_rows_updated	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Adaptive Hash Index rows updated
+adaptive_hash_dict_mutex_hold_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time holding the mutex for the data dictionary cache system when disabling AHI in microseconds
+adaptive_hash_bufferpool_mutex_hold_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time holding the mutex for the buffer pool in microseconds
+adaptive_hash_add_page_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time building a hash index on a page in microseconds
+adaptive_hash_remove_page_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time dropping a hash index from a page in microseconds
+adaptive_hash_add_row_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time adding rows to the Adaptive Hash Index in microseconds
+adaptive_hash_remove_row_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time removing rows from the Adaptive Hash Index in microseconds
+adaptive_hash_update_row_time	adaptive_hash_index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time updating rows in the Adaptive Hash Index in microseconds
 file_num_open_files	file_system	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of files currently open (innodb_num_open_files)
 ibuf_merges_insert	change_buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	status_counter	Number of inserted records merged by change buffering
 ibuf_merges_delete_mark	change_buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	disabled	status_counter	Number of deleted records merged by change buffering

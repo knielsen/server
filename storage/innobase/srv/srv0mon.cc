@@ -1092,6 +1092,41 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of Adaptive Hash Index rows updated",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ROW_UPDATED},
+
+	{"adaptive_hash_dict_mutex_hold_time", "adaptive_hash_index",
+	 "Time holding the mutex for the data dictionary cache system when disabling AHI in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_DICT_MUTEX_HOLD_TIME_MICROSECOND},
+
+	{"adaptive_hash_bufferpool_mutex_hold_time", "adaptive_hash_index",
+	 "Time holding the mutex for the buffer pool in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_BUFFERPOOL_MUTEX_HOLD_TIME_MICROSECOND},
+
+	{"adaptive_hash_add_page_time", "adaptive_hash_index",
+	 "Time building a hash index on a page in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ADD_PAGE_TIME_MICROSECOND},
+
+	{"adaptive_hash_remove_page_time", "adaptive_hash_index",
+	 "Time dropping a hash index from a page in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_REMOVE_PAGE_TIME_MICROSECOND},
+
+	{"adaptive_hash_add_row_time", "adaptive_hash_index",
+	 "Time adding rows to the Adaptive Hash Index in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ADD_ROW_TIME_MICROSECOND},
+
+	{"adaptive_hash_remove_row_time", "adaptive_hash_index",
+	 "Time removing rows from the Adaptive Hash Index in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_REMOVE_ROW_TIME_MICROSECOND},
+
+	{"adaptive_hash_update_row_time", "adaptive_hash_index",
+	 "Time updating rows in the Adaptive Hash Index in microseconds",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_UPDATE_ROW_TIME_MICROSECOND},
 #endif /* BTR_CUR_HASH_ADAPT */
 
 	/* ========== Counters for tablespace ========== */
