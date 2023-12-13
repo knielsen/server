@@ -298,6 +298,9 @@ enum enum_alter_inplace_result {
 
 #define HA_PERSISTENT_TABLE              (1ULL << 48)
 
+/* If storage engine uses another engine as a base */
+#define HA_REUSES_FILE_NAMES             (1ULL << 49)
+
 /*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
@@ -512,6 +515,7 @@ enum legacy_db_type
   DB_TYPE_BINLOG=21,
   DB_TYPE_PBXT=23,
   DB_TYPE_PERFORMANCE_SCHEMA=28,
+  DB_TYPE_S3=41,
   DB_TYPE_ARIA=42,
   DB_TYPE_TOKUDB=43,
   DB_TYPE_SEQUENCE=44,
@@ -1008,6 +1012,7 @@ enum enum_schema_tables
   SCH_FILES,
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
+  SCH_KEYWORDS,
   SCH_KEY_CACHES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
@@ -1024,6 +1029,7 @@ enum enum_schema_tables
   SCH_SESSION_STATUS,
   SCH_SESSION_VARIABLES,
   SCH_STATISTICS,
+  SCH_SQL_FUNCTIONS,
   SCH_SYSTEM_VARIABLES,
   SCH_TABLES,
   SCH_TABLESPACES,
@@ -1048,6 +1054,8 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *status, size_t status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 extern MYSQL_PLUGIN_IMPORT st_plugin_int *hton2plugin[MAX_HA];
+
+#define view_pseudo_hton ((handlerton *)1)
 
 /* Transaction log maintains type definitions */
 enum log_status
@@ -2104,9 +2112,11 @@ struct Table_scope_and_contents_source_pod_st // For trivial members
 {
   CHARSET_INFO *alter_table_convert_to_charset;
   LEX_CUSTRING tabledef_version;
+  LEX_CUSTRING org_tabledef_version;            /* version of dropped table */
   LEX_CSTRING connect_string;
   LEX_CSTRING comment;
   LEX_CSTRING alias;
+  LEX_CSTRING org_storage_engine_name, new_storage_engine_name;
   const char *password, *tablespace;
   const char *data_file_name, *index_file_name;
   ulonglong max_rows,min_rows;
@@ -3938,6 +3948,8 @@ public:
   virtual void free_foreign_key_create_info(char* str) {}
   /** The following can be called without an open handler */
   const char *table_type() const { return hton_name(ht)->str; }
+  /* The following is same as table_table(), except for partition engine */
+  virtual const char *real_table_type() const { return hton_name(ht)->str; }
   const char **bas_ext() const { return ht->tablefile_extensions; }
 
   virtual int get_default_no_partitions(HA_CREATE_INFO *create_info)
@@ -4831,6 +4843,7 @@ public:
   /* XXX to be removed, see ha_partition::partition_ht() */
   virtual handlerton *partition_ht() const
   { return ht; }
+  virtual bool partition_engine() { return 0;}
   inline int ha_write_tmp_row(uchar *buf);
   inline int ha_delete_tmp_row(uchar *buf);
   inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
@@ -4859,7 +4872,6 @@ public:
   { DBUG_ASSERT(ht); return partition_ht()->flags & HTON_NATIVE_SYS_VERSIONING; }
   virtual void update_partition(uint	part_id)
   {}
-
   virtual bool is_clustering_key(uint index) { return false; }
 
   /**
@@ -4895,6 +4907,7 @@ public:
                                          const KEY_PART_INFO &old_part,
                                          const KEY_PART_INFO &new_part) const;
 
+  void log_not_redoable_operation(const char *operation);
 protected:
   Handler_share *get_ha_share_ptr();
   void set_ha_share_ptr(Handler_share *arg_ha_share);
@@ -4937,7 +4950,8 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 
 static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton_name(db_type)->str;
+  return (db_type == NULL ? "UNKNOWN" :
+          db_type == view_pseudo_hton ? "VIEW" : hton_name(db_type)->str);
 }
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
@@ -4950,8 +4964,6 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
   return (db_type && db_type->create) ?
          (db_type->state == SHOW_OPTION_YES) : FALSE;
 }
-
-#define view_pseudo_hton ((handlerton *)1)
 
 /* basic stuff */
 int ha_init_errors(void);
@@ -5012,7 +5024,10 @@ public:
 int ha_discover_table(THD *thd, TABLE_SHARE *share);
 int ha_discover_table_names(THD *thd, LEX_CSTRING *db, MY_DIR *dirp,
                             Discovered_table_list *result, bool reusable);
-bool ha_table_exists(THD *thd, const LEX_CSTRING *db, const LEX_CSTRING *table_name,
+bool ha_table_exists(THD *thd, const LEX_CSTRING *db,
+                     const LEX_CSTRING *table_name,
+                     LEX_CUSTRING *table_version= 0,
+                     LEX_CSTRING *partition_engine_name= 0,
                      handlerton **hton= 0, bool *is_sequence= 0);
 #endif
 

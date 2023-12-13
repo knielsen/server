@@ -43,6 +43,7 @@
 #include "sql_base.h"
 #include "sql_test.h"     // mysql_print_status
 #include "item_create.h"  // item_create_cleanup, item_create_init
+#include "json_schema.h"
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
@@ -456,7 +457,7 @@ ulong delay_key_write_options;
 uint protocol_version;
 uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
-Atomic_counter<uint32_t> thread_count;
+Atomic_counter<uint32_t> THD_count::count;
 bool shutdown_wait_for_slaves;
 Atomic_counter<uint32_t> slave_open_temp_tables;
 ulong thread_created;
@@ -724,6 +725,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
+mysql_mutex_t LOCK_backup_log;
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_ssl_refresh;
 mysql_rwlock_t LOCK_all_status_vars;
@@ -871,7 +873,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_xid_list,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
-  key_LOCK_manager,
+  key_LOCK_manager, key_LOCK_backup_log,
   key_LOCK_prepared_stmt_count,
   key_LOCK_rpl_status, key_LOCK_server_started,
   key_LOCK_status,
@@ -932,6 +934,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
+  { &key_LOCK_backup_log, "LOCK_backup_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_thread_id, "LOCK_thread_id", PSI_FLAG_GLOBAL},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
@@ -1128,6 +1131,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
+  key_file_log_ddl,
   key_file_master_info, key_file_misc, key_file_partition,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
@@ -1517,6 +1521,9 @@ static void end_ssl();
 
 
 #ifndef EMBEDDED_LIBRARY
+extern Atomic_counter<uint32_t> local_connection_thread_count;
+
+
 /****************************************************************************
 ** Code to end mysqld
 ****************************************************************************/
@@ -1756,9 +1763,9 @@ static void close_connections(void)
     much smaller than even 2 seconds, this is only a safety fallback against
     stuck threads so server shutdown is not held up forever.
   */
-  DBUG_PRINT("info", ("thread_count: %u", uint32_t(thread_count)));
+  DBUG_PRINT("info", ("THD_count: %u", THD_count::value()));
 
-  for (int i= 0; (thread_count - binlog_dump_thread_count) && i < 1000; i++)
+  for (int i= 0; (THD_count::value() - binlog_dump_thread_count) && i < 1000; i++)
     my_sleep(20000);
 
   if (global_system_variables.log_warnings)
@@ -1771,15 +1778,16 @@ static void close_connections(void)
   }
 #endif
   /* All threads has now been aborted */
-  DBUG_PRINT("quit", ("Waiting for threads to die (count=%u)",
-                      uint32_t(thread_count)));
+  DBUG_PRINT("quit", ("Waiting for threads to die (count=%u)", THD_count::value()));
 
-  while (thread_count - binlog_dump_thread_count)
+  while (THD_count::value() - binlog_dump_thread_count)
     my_sleep(1000);
 
   /* Kill phase 2 */
   server_threads.iterate(kill_thread_phase_2);
-  for (uint64 i= 0; thread_count; i++)
+  for (uint64 i= 0;
+       THD_count::value() > local_connection_thread_count;
+       i++)
   {
     /*
       This time the warnings are emitted within the loop to provide a
@@ -1911,6 +1919,7 @@ static void mysqld_exit(int exit_code)
   wait_for_signal_thread_to_end();
 #ifdef WITH_WSREP
   wsrep_deinit_server();
+  wsrep_sst_auth_free();
 #endif /* WITH_WSREP */
   mysql_audit_finalize();
   clean_up_mutexes();
@@ -1967,6 +1976,7 @@ static void clean_up(bool print_message)
   item_func_sleep_free();
   lex_free();				/* Free some memory */
   item_create_cleanup();
+  cleanup_json_schema_keyword_hash();
   tdc_start_shutdown();
 #ifdef HAVE_REPLICATION
   semi_sync_master_deinit();
@@ -2107,6 +2117,7 @@ static void clean_up_mutexes()
 #endif /* HAVE_REPLICATION */
   mysql_mutex_destroy(&LOCK_active_mi);
   mysql_rwlock_destroy(&LOCK_ssl_refresh);
+  mysql_mutex_destroy(&LOCK_backup_log);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -2546,7 +2557,7 @@ void close_connection(THD *thd, uint sql_errno)
 
   if (sql_errno)
   {
-    net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
+    thd->protocol->net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
     thd->print_aborted_warning(lvl, ER_DEFAULT(sql_errno));
   }
   else
@@ -3247,7 +3258,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       sql_print_information("Got signal %d to shutdown mysqld",sig);
 #endif
       /* switch to the old log message processing */
-      logger.set_handlers(LOG_FILE, global_system_variables.sql_log_slow ? LOG_FILE:LOG_NONE,
+      logger.set_handlers(global_system_variables.sql_log_slow ? LOG_FILE:LOG_NONE,
                           opt_log ? LOG_FILE:LOG_NONE);
       DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
       if (!abort_loop)
@@ -3284,14 +3295,19 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, &not_used); // Flush logs
-
-        /* reenable logs after the options were reloaded */
-        ulonglong fixed_log_output_options=
-          log_output_options & LOG_NONE ? LOG_TABLE : log_output_options;
-
-        logger.set_handlers(LOG_FILE, global_system_variables.sql_log_slow
-                                      ? fixed_log_output_options : LOG_NONE,
-                            opt_log ? fixed_log_output_options : LOG_NONE);
+      }
+      /* reenable logs after the options were reloaded */
+      if (log_output_options & LOG_NONE)
+      {
+        logger.set_handlers(global_system_variables.sql_log_slow ?
+                            LOG_TABLE : LOG_NONE,
+                            opt_log ? LOG_TABLE : LOG_NONE);
+      }
+      else
+      {
+        logger.set_handlers(global_system_variables.sql_log_slow ?
+                            log_output_options : LOG_NONE,
+                            opt_log ? log_output_options : LOG_NONE);
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
@@ -4304,6 +4320,7 @@ static int init_common_variables()
     return 1;
   item_init();
   init_pcre();
+  setup_json_schema_keyword_hash();
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for
@@ -4542,6 +4559,7 @@ static int init_thread_environment()
                    MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_commit_ordered, &LOCK_commit_ordered,
                    MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_LOCK_backup_log, &LOCK_backup_log, MY_MUTEX_INIT_FAST);
 
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
@@ -5221,12 +5239,16 @@ static int init_server_components()
 
   init_global_table_stats();
   init_global_index_stats();
+  init_update_queries();
 
   /* Allow storage engine to give real error messages */
   if (unlikely(ha_init_errors()))
     DBUG_RETURN(1);
 
   tc_log= 0; // ha_initialize_handlerton() needs that
+
+  //if (ddl_log_initialize())
+  //  unireg_abort(1);
 
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
@@ -5328,7 +5350,7 @@ static int init_server_components()
       sql_print_warning("There were other values specified to "
                         "log-output besides NONE. Disabling slow "
                         "and general logs anyway.");
-    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+    logger.set_handlers(LOG_NONE, LOG_NONE);
   }
   else
   {
@@ -5344,8 +5366,7 @@ static int init_server_components()
       /* purecov: end */
     }
 
-    logger.set_handlers(LOG_FILE,
-                        global_system_variables.sql_log_slow ?
+    logger.set_handlers(global_system_variables.sql_log_slow ?
                         log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
   }
@@ -5464,7 +5485,6 @@ static int init_server_components()
   ft_init_stopwords();
 
   init_max_user_conn();
-  init_update_queries();
   init_global_user_stats();
   init_global_client_stats();
   if (!opt_bootstrap)
@@ -8081,7 +8101,7 @@ static int mysql_init_variables(void)
   mqh_used= 0;
   cleanup_done= 0;
   select_errors= dropping_tables= ha_open_options=0;
-  thread_count= kill_cached_threads= wake_thread= 0;
+  THD_count::count= kill_cached_threads= wake_thread= 0;
   slave_open_temp_tables= 0;
   cached_thread_count= 0;
   opt_endinfo= using_udf_functions= 0;
@@ -9415,6 +9435,7 @@ static PSI_file_info all_server_files[]=
   { &key_file_global_ddl_log, "global_ddl_log", 0},
   { &key_file_load, "load", 0},
   { &key_file_loadfile, "LOAD_FILE", 0},
+  { &key_file_log_ddl, "log_ddl", 0},
   { &key_file_log_event_data, "log_event_data", 0},
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_master_info, "master_info", 0},

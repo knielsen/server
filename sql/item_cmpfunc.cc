@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2019, MariaDB
+   Copyright (c) 2009, 2021, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -787,7 +787,9 @@ int Arg_comparator::compare_e_string()
 {
   String *res1,*res2;
   res1= (*a)->val_str(&value1);
+  DBUG_ASSERT((res1 == NULL) == (*a)->null_value);
   res2= (*b)->val_str(&value2);
+  DBUG_ASSERT((res2 == NULL) == (*b)->null_value);
   if (!res1 || !res2)
     return MY_TEST(res1 == res2);
   return MY_TEST(sortcmp(res1, res2, compare_collation()) == 0);
@@ -1383,6 +1385,9 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
     maybe_null=1;
   m_with_subquery= true;
   join_with_sum_func(args[1]);
+  with_window_func= args[0]->with_window_func;
+  // The subquery cannot have window functions aggregated in this select
+  DBUG_ASSERT(!args[1]->with_window_func);
   with_field= with_field || args[1]->with_field;
   with_param= args[0]->with_param || args[1]->with_param; 
   used_tables_and_const_cache_join(args[1]);

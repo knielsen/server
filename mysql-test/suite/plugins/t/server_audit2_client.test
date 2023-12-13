@@ -1,0 +1,67 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+# need to have the dynamic loading turned on for the client plugin tests
+--source include/have_plugin_auth.inc
+# This test is slow on buildbot.
+--source include/big_test.inc
+
+if (!$SERVER_AUDIT2_SO) {
+  skip No SERVER_AUDIT2 plugin;
+}
+
+install plugin server_audit soname 'server_audit2';
+
+show variables like 'server_audit%';
+set global server_audit_file_path=null;
+set global server_audit_file_path='server_audit.log';
+set global server_audit_output_type=file;
+set global server_audit_logging=on;
+SHOW GLOBAL STATUS LIKE "server_audit%";
+
+SET @old_general_log= @@global.general_log;
+SET @old_slow_query_log= @@global.slow_query_log;
+
+call mtr.add_suppression(" Error reading file './client_test_db/test_frm_bug.frm'");
+call mtr.add_suppression(" IP address .* could not be resolved");
+
+# We run with different binaries for normal and --embedded-server
+#
+# If this test fails with "command "$MYSQL_CLIENT_TEST" failed",
+# you should either run mysql_client_test separartely against a running
+# server or run mysql-test-run --debug mysql_client_test and check
+# var/log/mysql_client_test.trace
+
+--exec echo "$MYSQL_CLIENT_TEST" > $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+--exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+
+# End of 4.1 tests
+echo ok;
+
+--echo
+--echo # cat MYSQL_TMP_DIR/test_wl4435.out.log
+--echo # ------------------------------------
+--cat_file $MYSQL_TMP_DIR/test_wl4435.out.log
+--echo # ------------------------------------
+--echo
+
+--echo
+--echo # cat MYSQL_TMP_DIR/test_explain_meta.out.log
+--echo # ------------------------------------
+
+# For MAX_INDEXES=128,  max_len for possible_keys column is twice as large vs MAX_INDEXES=64
+--replace_result 24576 12288
+
+--cat_file $MYSQL_TMP_DIR/test_explain_meta.out.log
+--echo # ------------------------------------
+--echo
+
+SET @@global.general_log= @old_general_log;
+SET @@global.slow_query_log= @old_slow_query_log;
+
+uninstall plugin server_audit;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+# replace the timestamp and the hostname with constant values
+--replace_regex /[0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\,[^,]*\,/TIME,HOSTNAME,/ /\,[1-9][0-9]*\,/,1,/ /\,[1-9][0-9]*/,ID/
+cat_file $MYSQLD_DATADIR/server_audit.log;
+remove_file $MYSQLD_DATADIR/server_audit.log;
+

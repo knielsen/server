@@ -1,0 +1,96 @@
+# tests for event type connect
+
+--source include/not_embedded.inc
+ 
+if (!$SERVER_AUDIT2_SO) {
+  skip No SERVER_AUDIT2 plugin;
+}
+
+--source server_audit2_init.inc
+
+# add rules
+INSERT INTO mysql.server_audit_filters VALUES ('default','{"logging" : "off"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_all','{"query_event" : "ALL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_read','{"query_event" : "DML_READ"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_write','{"query_event" : "DML_WRITE"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_dml','{"query_event" : "DML"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_ddl','{"query_event" : "DDL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_dcl','{"query_event" : "DCL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_dml_no_select','{"query_event" : "DML_NO_SELECT"}');
+INSERT INTO mysql.server_audit_filters VALUES ('query_combined','{"query_event" : ["DDL","DCL"]}');
+
+SET GLOBAL server_audit_logging=on;
+
+# test with new filter
+INSERT INTO mysql.server_audit_users VALUES ('%','root','query_all');
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_read' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_write' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_dml' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+ --source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_ddl' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_dcl' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_dml_no_select' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'query_combined' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+--source server_audit2_cleanup.inc
+

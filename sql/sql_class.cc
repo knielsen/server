@@ -612,6 +612,7 @@ THD::THD(my_thread_id id, bool is_wsrep_applier)
    thread_dbug_id(id),
    os_thread_id(0),
    global_disable_checkpoint(0),
+   current_backup_stage(BACKUP_FINISHED),
    failed_com_change_user(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -666,6 +667,7 @@ THD::THD(my_thread_id id, bool is_wsrep_applier)
    wsrep_replicate_GTID(false),
    wsrep_ignore_table(false),
    wsrep_aborter(0),
+   wsrep_delayed_BF_abort(false),
 
 /* wsrep-lib */
    m_wsrep_next_trx_id(WSREP_UNDEFINED_TRX_ID),
@@ -4782,6 +4784,33 @@ extern "C" void thd_create_random_password(MYSQL_THD thd,
 }
 
 
+extern "C" const char *thd_priv_host(MYSQL_THD thd, size_t *length)
+{
+  const Security_context *sctx= thd->security_ctx;
+  if (!sctx)
+  {
+    *length= 0;
+    return NULL;
+  }
+  *length= strlen(sctx->priv_host);
+  return sctx->priv_host;
+}
+
+
+extern "C" const char *thd_priv_user(MYSQL_THD thd, size_t *length)
+{
+  const Security_context *sctx= thd->security_ctx;
+  if (!sctx)
+  {
+    *length= 0;
+    return NULL;
+  }
+  *length= strlen(sctx->priv_user);
+  return sctx->priv_user;
+}
+
+
+
 #ifdef INNODB_COMPATIBILITY_HOOKS
 
 /** open a table and add it to thd->open_tables
@@ -4881,6 +4910,13 @@ void thd_clear_error(MYSQL_THD thd)
   thd->clear_error();
 }
 
+
+extern "C" unsigned long long thd_query_id(const MYSQL_THD thd)
+{
+  return((unsigned long long)thd->query_id);
+}
+
+
 extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 {
   return(thd->charset());
@@ -4935,6 +4971,55 @@ extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
   }
   buf[len]= '\0';
   return len;
+}
+
+
+extern "C" const char *thd_user_name(MYSQL_THD thd)
+{
+  if (!thd->security_ctx)
+    return 0;
+
+  return thd->security_ctx->user;
+}
+
+
+extern "C" const char *thd_client_host(MYSQL_THD thd)
+{
+  if (!thd->security_ctx)
+    return 0;
+
+  return thd->security_ctx->host;
+}
+
+
+extern "C" const char *thd_client_ip(MYSQL_THD thd)
+{
+  if (!thd->security_ctx)
+    return 0;
+
+  return thd->security_ctx->ip;
+}
+
+
+extern "C" LEX_CSTRING *thd_current_db(MYSQL_THD thd)
+{
+  return &thd->db;
+}
+
+
+extern "C" int thd_current_status(MYSQL_THD thd)
+{
+  Diagnostics_area *da= thd->get_stmt_da();
+  if (!da)
+    return 0;
+
+  return da->is_error() ? da->sql_errno() : 0;
+}
+
+
+extern "C" enum enum_server_command thd_current_command(MYSQL_THD thd)
+{
+  return thd->get_command();
 }
 
 
@@ -5295,6 +5380,33 @@ extern "C" size_t thd_deadlock_buf(MYSQL_THD thd, char **buf)
 }
 
 #endif // INNODB_COMPATIBILITY_HOOKS */
+
+
+/**
+  Query table list accessor.
+*/
+extern "C" size_t thd_query_table_list(MYSQL_THD thd,
+    MYSQL_CONST_LEX_STRING *db_table_names, size_t max_names)
+{
+  TABLE_LIST *tl= thd->lex->query_tables;
+  size_t n_names= 0;
+
+  while (tl)
+  {
+    if (tl->db.length == 0 && tl->db.str == empty_c_string)
+      continue;
+
+    if (max_names > n_names + 1)
+    {
+      db_table_names[n_names]= tl->db;
+      db_table_names[n_names+1]= tl->table_name;
+    }
+    n_names+= 2;
+    tl= tl->next_global;
+  }
+  return n_names;
+}
+
 
 /****************************************************************************
   Handling of statement states in functions and triggers.

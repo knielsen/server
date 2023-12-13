@@ -270,6 +270,7 @@ foo@localhost	foo
 select * from v2d;
 table_name
 user
+server_audit_users
 select * from v2i;
 table_name
 select * from v3d;
@@ -300,9 +301,11 @@ root@localhost	root
 select * from v2d;
 table_name
 user
+server_audit_users
 select * from v2i;
 table_name
 user
+server_audit_users
 select * from v3d;
 schema_name
 mysql

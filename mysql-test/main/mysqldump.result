@@ -5768,6 +5768,35 @@ CREATE TABLE `innodb_table_stats` (
   PRIMARY KEY (`database_name`,`table_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `server_audit_filters`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_filters` (
+  `filtername` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `rule` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT 'true' CHECK (json_valid(`rule`)),
+  UNIQUE KEY `c_filtername` (`filtername`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_filters` WRITE;
+/*!40000 ALTER TABLE `server_audit_filters` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_filters` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `server_audit_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_users` (
+  `host` char(60) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `user` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `filtername` char(80) NOT NULL DEFAULT '',
+  UNIQUE KEY `c_host_user` (`host`,`user`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_users` WRITE;
+/*!40000 ALTER TABLE `server_audit_users` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_users` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE IF NOT EXISTS `general_log` (
@@ -5873,6 +5902,35 @@ LOCK TABLES `innodb_table_stats` WRITE;
 /*!40000 ALTER TABLE `innodb_table_stats` DISABLE KEYS */;
 /*!40000 ALTER TABLE `innodb_table_stats` ENABLE KEYS */;
 UNLOCK TABLES;
+DROP TABLE IF EXISTS `server_audit_filters`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_filters` (
+  `filtername` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `rule` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT 'true' CHECK (json_valid(`rule`)),
+  UNIQUE KEY `c_filtername` (`filtername`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_filters` WRITE;
+/*!40000 ALTER TABLE `server_audit_filters` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_filters` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `server_audit_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_users` (
+  `host` char(60) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `user` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `filtername` char(80) NOT NULL DEFAULT '',
+  UNIQUE KEY `c_host_user` (`host`,`user`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_users` WRITE;
+/*!40000 ALTER TABLE `server_audit_users` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_users` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE IF NOT EXISTS `general_log` (
@@ -5977,6 +6035,35 @@ CREATE TABLE `innodb_table_stats` (
 LOCK TABLES `innodb_table_stats` WRITE;
 /*!40000 ALTER TABLE `innodb_table_stats` DISABLE KEYS */;
 /*!40000 ALTER TABLE `innodb_table_stats` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `server_audit_filters`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_filters` (
+  `filtername` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `rule` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT 'true' CHECK (json_valid(`rule`)),
+  UNIQUE KEY `c_filtername` (`filtername`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_filters` WRITE;
+/*!40000 ALTER TABLE `server_audit_filters` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_filters` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `server_audit_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `server_audit_users` (
+  `host` char(60) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `user` char(80) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `filtername` char(80) NOT NULL DEFAULT '',
+  UNIQUE KEY `c_host_user` (`host`,`user`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+LOCK TABLES `server_audit_users` WRITE;
+/*!40000 ALTER TABLE `server_audit_users` DISABLE KEYS */;
+/*!40000 ALTER TABLE `server_audit_users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;

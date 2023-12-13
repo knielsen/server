@@ -136,6 +136,9 @@ def	mysql	roles_mapping	mysql	Host
 def	mysql	roles_mapping	mysql	Host
 def	mysql	roles_mapping	mysql	Host
 def	mysql	servers	mysql	PRIMARY
+def	mysql	server_audit_filters	mysql	c_filtername
+def	mysql	server_audit_users	mysql	c_host_user
+def	mysql	server_audit_users	mysql	c_host_user
 def	mysql	tables_priv	mysql	Grantor
 def	mysql	tables_priv	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY

@@ -1,0 +1,18 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+server_audit2_connect    : server_audit2 tests are undeterministic, need to fix
+server_audit2_general    : server_audit2 tests are undeterministic, need to fix
+server_audit2_multiuser  : server_audit2 tests are undeterministic, need to fix
+server_audit2_query      : server_audit2 tests are undeterministic, need to fix
+server_audit2_table      : server_audit2 tests are undeterministic, need to fix
+server_audit             : server_audit generates memory warnings, need to fix
+server_audit2            : server_audit2 generates memory warnings, need to fix

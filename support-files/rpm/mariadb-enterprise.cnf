@@ -1,0 +1,36 @@
+
+# This file provides a set of sensible default settings. If you need
+# to override these, you should add a new .cnf file in the appropriate
+# directory for your system. Make sure the name of your file starts
+# with a filename that sorts "later" than the name of this file. For
+# example, if you want to override the settings in
+# mariadb-enterprise.cnf, put your own options in a file that starts
+# with a name like "zebra" rather than a name like "apple".
+# If you have questions about the contents of this file, how to tune
+# your server, or anything else related to covered products or
+# services, please contact MariaDB Technical Support at
+# https://support.mariadb.com
+
+[mariadb]
+
+## -- Only enables stable plugins. Comment or change to unknown if you want
+#     to have all plugins enabled
+plugin-maturity=gamma
+
+# -- Auditing - pre-load Plugin
+plugin-load-add=server_audit2
+server_audit=FORCE_PLUS_PERMANENT
+server_audit_logging=OFF
+plugin-load-add=disks
+
+# -- Enable ed25519 authentication
+plugin-load-add=auth_ed25519
+
+# --Enable simple_password_check
+plugin-load-add=simple_password_check
+
+[mysql]
+
+[mysqldump]
+
+[myisamchk]

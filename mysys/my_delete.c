@@ -84,6 +84,8 @@ static int my_win_unlink(const char *name)
   DWORD attributes;
   uint last_error;
   char unique_filename[MAX_PATH + 35];
+  char temp_dir[MAX_PATH];
+  DWORD temp_dir_res;
   unsigned long long tsc; /* time stamp counter, for unique filename*/
 
   DBUG_ENTER("my_win_unlink");
@@ -163,18 +165,31 @@ static int my_win_unlink(const char *name)
      goto error;
   }
 
-  tsc= __rdtsc();
-  my_snprintf(unique_filename,sizeof(unique_filename),"%s.%llx.deleted", 
+  tsc = __rdtsc();
+  /*
+    Try to move to %TEMP% dir to avoid DROP DATABASE error in the case
+    if the file is opened by some external process like mariabackup.
+  */
+  temp_dir_res = GetEnvironmentVariable("TEMP", temp_dir, sizeof(temp_dir));
+  if (temp_dir_res && temp_dir_res < sizeof(temp_dir)) {
+    my_snprintf(unique_filename, sizeof(unique_filename), "%s\\%s.%llx.deleted",
+      temp_dir, name, tsc);
+    if (MoveFile(name, unique_filename))
+      goto ok;
+  }
+
+  my_snprintf(unique_filename,sizeof(unique_filename),"%s.%llx.deleted",
     name, tsc);
-  if (!MoveFile(name, unique_filename)) 
+  if (!MoveFile(name, unique_filename))
   {
     DBUG_PRINT("warning",  ("moving %s to unique filename failed, error %lu\n",
     name,GetLastError()));
   }
 
+ok:
   CloseHandle(handle);
   DBUG_RETURN(0);
- 
+
 error:
   my_osmaperr(last_error);
   DBUG_RETURN(-1);

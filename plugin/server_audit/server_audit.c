@@ -943,8 +943,8 @@ static void error_header()
   (void) time(&curtime);
   (void) localtime_r(&curtime, &tm_time);
 
-  (void) fprintf(stderr,"%02d%02d%02d %2d:%02d:%02d server_audit: ",
-    tm_time.tm_year % 100, tm_time.tm_mon + 1,
+  (void) fprintf(stderr,"%d-%02d-%02d %2d:%02d:%02d server_audit: ",
+    tm_time.tm_year + 1900, tm_time.tm_mon + 1,
     tm_time.tm_mday, tm_time.tm_hour, tm_time.tm_min, tm_time.tm_sec);
 }
 
@@ -2563,7 +2563,7 @@ static int server_audit_init(void *p __attribute__((unused)))
       {
         error_header();
         fprintf(stderr, "Query cache is enabled with the TABLE events."
-                        " Some table reads can be veiled.");
+                        " Some table reads can be veiled.\n");
       }
     }
   }

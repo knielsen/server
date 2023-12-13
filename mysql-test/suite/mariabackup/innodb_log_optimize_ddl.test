@@ -28,7 +28,7 @@ let $targetdir=$MYSQLTEST_VARDIR/tmp/backup;
 send call a();
 
 --disable_result_log
-exec $XTRABACKUP --defaults-file=$MYSQLTEST_VARDIR/my.cnf --backup --target-dir=$targetdir;
+exec $XTRABACKUP --defaults-file=$MYSQLTEST_VARDIR/my.cnf --backup --parallel=10 --target-dir=$targetdir;
 --enable_result_log
 exec $XTRABACKUP  --prepare --target-dir=$targetdir;
 

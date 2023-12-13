@@ -48,7 +48,9 @@
 /* maria_open() flag, specific for maria_pack */
 #define HA_OPEN_IGNORE_MOVED_STATE (1U << 30)
 
+C_MODE_START
 extern PAGECACHE maria_pagecache_var, *maria_pagecache;
+C_MODE_END
 int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
 			      PAGECACHE *key_cache);
 void maria_change_pagecache(PAGECACHE *old_key_cache,
@@ -919,6 +921,7 @@ extern mysql_mutex_t THR_LOCK_maria;
 #define MARIA_SMALL_BLOB_BUFFER 1024U
 #define MARIA_MAX_CONTROL_FILE_LOCK_RETRY 30     /* Retry this many times */
 
+C_MODE_START
 /* Some extern variables */
 extern LIST *maria_open_list;
 extern uchar maria_file_magic[], maria_pack_file_magic[];
@@ -972,6 +975,7 @@ extern PSI_file_key key_file_translog, key_file_kfile, key_file_dfile,
 
 /* Note that PSI_stage_info globals must always be declared. */
 extern PSI_stage_info stage_waiting_for_a_resource;
+C_MODE_END
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1430,7 +1434,9 @@ extern void maria_page_write_failure(int error, PAGECACHE_IO_HOOK_ARGS *args);
 extern my_bool maria_flush_log_for_page(PAGECACHE_IO_HOOK_ARGS *args);
 extern my_bool maria_flush_log_for_page_none(PAGECACHE_IO_HOOK_ARGS *args);
 
+C_MODE_START
 extern PAGECACHE *maria_log_pagecache;
+C_MODE_END
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);
 check_result_t ma_check_index_cond(MARIA_HA *info, uint keynr, uchar *record);

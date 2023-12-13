@@ -15,6 +15,7 @@
 
 #include "wsrep_trans_observer.h"
 #include "wsrep_mysqld.h"
+#include "wsrep_encryption.h"
 
 #include <mysql/plugin.h>
 

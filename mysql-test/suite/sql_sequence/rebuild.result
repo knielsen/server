@@ -45,6 +45,7 @@ INNODB_SYS_INDEXES
 INNODB_SYS_TABLES
 INNODB_SYS_VIRTUAL
 INNODB_TRX
+KEYWORDS
 KEY_CACHES
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
@@ -60,6 +61,7 @@ SCHEMA_PRIVILEGES
 SESSION_STATUS
 SESSION_VARIABLES
 SPATIAL_REF_SYS
+SQL_FUNCTIONS
 STATISTICS
 SYSTEM_VARIABLES
 TABLES
@@ -130,6 +132,8 @@ proxies_priv
 roles_mapping
 rwlock_instances
 s1
+server_audit_filters
+server_audit_users
 servers
 session_account_connect_attrs
 session_connect_attrs

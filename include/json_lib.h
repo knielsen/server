@@ -1,6 +1,8 @@
 #ifndef JSON_LIB_INCLUDED
 #define JSON_LIB_INCLUDED
 
+#include <my_sys.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -172,7 +174,7 @@ enum json_states {
 
 enum json_value_types
 {
-  JSON_VALUE_UNINITALIZED=0,
+  JSON_VALUE_UNINITIALIZED=0,
   JSON_VALUE_OBJECT=1,
   JSON_VALUE_ARRAY=2,
   JSON_VALUE_STRING=3,
@@ -372,7 +374,7 @@ int json_find_paths_next(json_engine_t *je, json_find_paths_t *state);
 
 
 /*
-  Converst JSON string constant into ordinary string constant
+  Convert JSON string constant into ordinary string constant
   which can involve unpacking json escapes and changing character set.
   Returns negative integer in the case of an error,
   the length of the result otherwise.
@@ -383,7 +385,7 @@ int json_unescape(CHARSET_INFO *json_cs,
                   uchar *res, uchar *res_end);
 
 /*
-  Converst ordinary string constant into JSON string constant.
+  Convert ordinary string constant into JSON string constant.
   which can involve appropriate escaping and changing character set.
   Returns negative integer in the case of an error,
   the length of the result otherwise.
@@ -430,6 +432,14 @@ int json_locate_key(const char *js, const char *js_end,
                     const char *kname,
                     const char **key_start, const char **key_end,
                     int *comma_pos);
+
+int json_normalize(DYNAMIC_STRING *result,
+                   const char *s, size_t size, CHARSET_INFO *cs);
+
+inline static int json_scan_ended(json_engine_t *j)
+{
+  return (j->state == JST_ARRAY_END && j->stack_p == 0);
+}
 
 #ifdef  __cplusplus
 }

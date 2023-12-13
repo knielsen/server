@@ -63,6 +63,9 @@ def	mysql	roles_mapping	0	mysql	Host	1	Host	A	#CARD#	NULL	NULL		BTREE
 def	mysql	roles_mapping	0	mysql	Host	2	User	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	roles_mapping	0	mysql	Host	3	Role	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	server_audit_filters	0	mysql	c_filtername	1	filtername	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	server_audit_users	0	mysql	c_host_user	1	host	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	server_audit_users	0	mysql	c_host_user	2	user	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		

@@ -4,6 +4,8 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+flush tables;
+
 --source include/kill_mysqld.inc
 
 let $outfile= $MYSQLTEST_VARDIR/tmp/bad_option_1.txt;

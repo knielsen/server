@@ -7945,3 +7945,7 @@ ER_PERIOD_CONSTRAINT_DROP
         eng "Can't DROP CONSTRAINT `%s`. Use DROP PERIOD `%s` for this"
 ER_TOO_LONG_KEYPART 42000 S1009
         eng "Specified key part was too long; max key part length is %u bytes"
+ER_JSON_INVALID_VALUE_FOR_KEYWORD
+        eng "Invalid value for keyword %s"
+ER_JSON_SCHEMA_KEYWORD_UNSUPPORTED
+        eng "%s keyword is not supported"

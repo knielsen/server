@@ -1,0 +1,82 @@
+# tests for with several userst
+
+--source include/not_embedded.inc
+ 
+if (!$SERVER_AUDIT2_SO) {
+  skip No SERVER_AUDIT2 plugin;
+}
+
+--source server_audit2_init.inc
+
+SET GLOBAL server_audit_logging=on;
+# add rules
+INSERT INTO mysql.server_audit_filters VALUES ('default','{}');
+INSERT INTO mysql.server_audit_filters VALUES ('user1','{"connect_event":"all","table_event":"ALL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('user2','{"connect_event":"all","query_event":"DDL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('user3','{"connect_event":"all","query_event":"DML"}');
+
+INSERT INTO mysql.server_audit_users VALUES ('%','user1','user1');
+INSERT INTO mysql.server_audit_users VALUES ('%','user2','user2');
+INSERT INTO mysql.server_audit_users VALUES ('%','user3','user3');
+
+CREATE USER 'user1'@'%';
+CREATE USER 'user2'@'%';
+CREATE USER 'user3'@'%';
+GRANT all on *.* to 'user1'@'%'; 
+GRANT all on *.* to 'user2'@'%'; 
+GRANT all on *.* to 'user3'@'%'; 
+
+connect (conn1,localhost,user1,,);
+connect (conn2,localhost,user2,,);
+connect (conn3,localhost,user3,,);
+
+connection conn1;
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+# test with new filter
+SET GLOBAL server_audit_reload_filters=ON;
+CREATE DATABASE d1;
+CREATE TABLE d1.t1 (id int);
+INSERT INTO d1.t1 VALUES (1);
+UPDATE d1.t1 SET id=2;
+DELETE FROM d1.t1;
+DROP TABLE d1.t1;
+DROP DATABASE d1;
+
+connection conn2;
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+# test with new filter
+SET GLOBAL server_audit_reload_filters=ON;
+CREATE DATABASE d1;
+CREATE TABLE d1.t1 (id int);
+INSERT INTO d1.t1 VALUES (1);
+UPDATE d1.t1 SET id=2;
+DELETE FROM d1.t1;
+DROP TABLE d1.t1;
+DROP DATABASE d1;
+
+connection conn3;
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+# test with new filter
+SET GLOBAL server_audit_reload_filters=ON;
+CREATE DATABASE d1;
+CREATE TABLE d1.t1 (id int);
+INSERT INTO d1.t1 VALUES (1);
+UPDATE d1.t1 SET id=2;
+DELETE FROM d1.t1;
+DROP TABLE d1.t1;
+DROP DATABASE d1;
+
+connection default;
+disconnect conn1;
+disconnect conn2;
+disconnect conn3;
+
+DROP USER 'user1'@'%';
+DROP USER 'user2'@'%';
+DROP USER 'user3'@'%';
+
+--source server_audit2_cleanup.inc
+

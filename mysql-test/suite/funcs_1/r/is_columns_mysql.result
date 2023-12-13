@@ -166,6 +166,11 @@ def	mysql	servers	Server_name	1	''	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_gener
 def	mysql	servers	Socket	7	''	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		NEVER	NULL
 def	mysql	servers	Username	4	''	NO	char	80	240	NULL	NULL	NULL	utf8	utf8_general_ci	char(80)			select,insert,update,references		NEVER	NULL
 def	mysql	servers	Wrapper	8	''	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		NEVER	NULL
+def	mysql	server_audit_filters	filtername	1	''	NO	char	80	240	NULL	NULL	NULL	utf8	utf8_bin	char(80)	PRI		select,insert,update,references		NEVER	NULL
+def	mysql	server_audit_filters	rule	2	'true'	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	longtext			select,insert,update,references		NEVER	NULL
+def	mysql	server_audit_users	filtername	3	''	NO	char	80	80	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(80)			select,insert,update,references		NEVER	NULL
+def	mysql	server_audit_users	host	1	''	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		NEVER	NULL
+def	mysql	server_audit_users	user	2	''	NO	char	80	240	NULL	NULL	NULL	utf8	utf8_bin	char(80)	PRI		select,insert,update,references		NEVER	NULL
 def	mysql	slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references		NEVER	NULL
 def	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		NEVER	NULL
 def	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		NEVER	NULL
@@ -493,6 +498,11 @@ NULL	mysql	servers	Port	int	NULL	NULL	NULL	NULL	int(4)
 3.0000	mysql	servers	Socket	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Wrapper	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Owner	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
+3.0000	mysql	server_audit_filters	filtername	char	80	240	utf8	utf8_bin	char(80)
+1.0000	mysql	server_audit_filters	rule	longtext	4294967295	4294967295	utf8mb4	utf8mb4_bin	longtext
+3.0000	mysql	server_audit_users	host	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	server_audit_users	user	char	80	240	utf8	utf8_bin	char(80)
+1.0000	mysql	server_audit_users	filtername	char	80	80	latin1	latin1_swedish_ci	char(80)
 NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp(6)
 1.0000	mysql	slow_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time(6)

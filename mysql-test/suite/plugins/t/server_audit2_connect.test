@@ -1,0 +1,78 @@
+# tests for eudit plugin - event type connect
+
+--source include/not_embedded.inc
+ 
+if (!$SERVER_AUDIT2_SO) {
+  skip No SERVER_AUDIT2 plugin;
+}
+
+--source server_audit2_init.inc
+
+# add rules
+INSERT INTO mysql.server_audit_filters VALUES ('default','{"logging" : "off"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_all','{"connect_event" : "ALL"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_connect','{"connect_event" : "CONNECT"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_disconnect','{"connect_event" : "DISCONNECT"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_failed','{"connect_event" : "FAILED_CONNECT"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_changed','{"connect_event" : "CHANGE_USER"}');
+INSERT INTO mysql.server_audit_filters VALUES ('connect_combined','{"connect_event" : ["CONNECT","DISCONNECT"]}');
+
+SET GLOBAL server_audit_logging=on;
+
+# test with new filter
+INSERT INTO mysql.server_audit_users VALUES ('%','root','connect_all');
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'connect_connect' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'connect_disconnect' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# NEEDS TO BE VERIFIED, THIS FILTER IS MISSING IN THE CODE
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'connect_failed' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+ --source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'connect_changed' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+# test with new filter
+UPDATE mysql.server_audit_users SET filtername= 'connect_combined' where host='%' and user='root';
+SET GLOBAL server_audit_reload_filters=ON;
+
+# show status to check used filter
+SHOW STATUS LIKE "Server_audit_session_filter";
+
+--source server_audit2_commands.inc
+
+--source server_audit2_cleanup.inc
+

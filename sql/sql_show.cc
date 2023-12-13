@@ -67,6 +67,19 @@
 #include "my_cpu.h"
 #include "rpl_rli.h"
 
+
+#include "lex_symbol.h"
+#define KEYWORD_SIZE 64
+
+extern SYMBOL symbols[];
+extern size_t symbols_length;
+
+extern SYMBOL sql_functions[];
+extern size_t sql_functions_length;
+
+extern Native_func_registry func_array[];
+extern size_t func_array_length;
+
 enum enum_i_s_events_fields
 {
   ISE_EVENT_CATALOG= 0,
@@ -4549,7 +4562,8 @@ static void get_table_engine_for_i_s(THD *thd, char *buf, TABLE_LIST *tl,
     build_table_filename(path, sizeof(path) - 1,
                          db->str, table->str, reg_ext, 0);
     bool is_sequence;
-    if (dd_frm_type(thd, path, &engine_name, &is_sequence) == TABLE_TYPE_NORMAL)
+    if (dd_frm_type(thd, path, &engine_name, NULL, NULL, &is_sequence) ==
+        TABLE_TYPE_NORMAL)
       tl->option= engine_name.str;
   }
 }
@@ -4769,7 +4783,9 @@ static int fill_schema_table_names(THD *thd, TABLE_LIST *tables,
     CHARSET_INFO *cs= system_charset_info;
     handlerton *hton;
     bool is_sequence;
-    if (ha_table_exists(thd, db_name, table_name, &hton, &is_sequence))
+
+    if (ha_table_exists(thd, db_name, table_name, NULL, NULL,
+                        &hton, &is_sequence))
     {
       if (hton == view_pseudo_hton)
         table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
@@ -7942,6 +7958,60 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_RETURN(res);
 }
 
+int add_symbol_to_table(const char* name, TABLE* table){
+  DBUG_ENTER("add_symbol_to_table");
+
+  uint length= strlen(name);
+
+  // If you've added a new SQL keyword longer than KEYWORD_SIZE,
+  // please increase the defined max length
+  DBUG_ASSERT(length < KEYWORD_SIZE);
+
+  restore_record(table, s->default_values);
+  table->field[0]->set_notnull();
+  table->field[0]->store(name, length,
+                         system_charset_info);
+  if (schema_table_store_record(table->in_use, table))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+int fill_i_s_keywords(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_i_s_keywords");
+
+  TABLE *table= tables->table;
+
+  for (uint i= 0; i < symbols_length; i++){
+    const char *name= symbols[i].name;
+    if (add_symbol_to_table(name, table))
+      DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int fill_i_s_sql_functions(THD *thd, TABLE_LIST *tables, COND *cond) {
+  DBUG_ENTER("fill_i_s_sql_functions");
+
+  TABLE *table= tables->table;
+
+  for (uint i= 0; i < sql_functions_length; i++){
+    const char *name= sql_functions[i].name;
+    if (add_symbol_to_table(name, table))
+      DBUG_RETURN(1);
+  }
+
+  for (uint i= 0; i < func_array_length; i++){
+    const char *name= func_array[i].name.str;
+    if (add_symbol_to_table(name, table))
+      DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 
 int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 {
@@ -9236,6 +9306,18 @@ ST_FIELD_INFO enabled_roles_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
+ST_FIELD_INFO keywords_field_info[]=
+{
+  {"WORD", KEYWORD_SIZE, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, 0, SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
+
+ST_FIELD_INFO sql_functions_field_info[]=
+{
+  {"FUNCTION", KEYWORD_SIZE, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, 0, SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
+
 
 ST_FIELD_INFO engines_fields_info[]=
 {
@@ -9943,6 +10025,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_status, make_old_format, 0, 0, -1, 0, 0},
   {"GLOBAL_VARIABLES", variables_fields_info, 0,
    fill_variables, make_old_format, 0, 0, -1, 0, 0},
+  {"KEYWORDS", keywords_field_info, 0,
+   fill_i_s_keywords, 0, 0, -1, -1, 0, 0},
   {"KEY_CACHES", keycache_fields_info, 0,
    fill_key_cache_tables, 0, 0, -1,-1, 0, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, 0,
@@ -9980,6 +10064,8 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"STATISTICS", stat_fields_info, 0,
    get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0,
    OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
+  {"SQL_FUNCTIONS", sql_functions_field_info, 0,
+   fill_i_s_sql_functions, 0, 0, -1, -1, 0, 0},
   {"SYSTEM_VARIABLES", sysvars_fields_info, 0,
    fill_sysvars, make_old_format, 0, 0, -1, 0, 0},
   {"TABLES", tables_fields_info, 0,

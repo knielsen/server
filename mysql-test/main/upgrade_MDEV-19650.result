@@ -111,6 +111,8 @@ mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.roles_mapping                                OK
 mysql.save_proc                                    OK
+mysql.server_audit_filters                         OK
+mysql.server_audit_users                           OK
 mysql.servers                                      OK
 mysql.table_stats                                  OK
 mysql.tables_priv                                  OK

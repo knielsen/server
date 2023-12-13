@@ -826,7 +826,7 @@ static int skip_key(json_engine_t *j)
 {
   int t_next, c_len;
 
-  if (json_instr_chr_map[j->s.c_next] == S_BKSL &&
+  if (j->s.c_next<128 && json_instr_chr_map[j->s.c_next] == S_BKSL &&
       json_handle_esc(&j->s))
     return 1;
 
@@ -933,7 +933,7 @@ int json_read_value(json_engine_t *j)
 {
   int t_next, c_len, res;
 
-  j->value_type= JSON_VALUE_UNINITALIZED;
+  j->value_type= JSON_VALUE_UNINITIALIZED;
   if (j->state == JST_KEY)
   {
     while (json_read_keyname_chr(j) == 0) {}
@@ -1754,107 +1754,6 @@ int json_get_path_next(json_engine_t *je, json_path_t *p)
 }
 
 
-int json_path_parts_compare(
-    const json_path_step_t *a, const json_path_step_t *a_end,
-    const json_path_step_t *b, const json_path_step_t *b_end,
-    enum json_value_types vt)
-{
-  int res, res2;
-
-  while (a <= a_end)
-  {
-    if (b > b_end)
-    {
-      while (vt != JSON_VALUE_ARRAY &&
-             (a->type & JSON_PATH_ARRAY_WILD) == JSON_PATH_ARRAY &&
-             a->n_item == 0)
-      {
-        if (++a > a_end)
-          return 0;
-      }
-      return -2;
-    }
-
-    DBUG_ASSERT((b->type & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD)) == 0);
-
-    
-    if (a->type & JSON_PATH_ARRAY)
-    {
-      if (b->type & JSON_PATH_ARRAY)
-      {
-        if ((a->type & JSON_PATH_WILD) || a->n_item == b->n_item)
-          goto step_fits;
-        goto step_failed;
-      }
-      if ((a->type & JSON_PATH_WILD) == 0 && a->n_item == 0)
-        goto step_fits_autowrap;
-      goto step_failed;
-    }
-    else /* JSON_PATH_KEY */
-    {
-      if (!(b->type & JSON_PATH_KEY))
-        goto step_failed;
-    
-      if (!(a->type & JSON_PATH_WILD) &&
-          (a->key_end - a->key != b->key_end - b->key ||
-           memcmp(a->key, b->key, a->key_end - a->key) != 0))
-        goto step_failed;
-
-      goto step_fits;
-    }
-step_failed:
-    if (!(a->type & JSON_PATH_DOUBLE_WILD))
-      return -1;
-    b++;
-    continue;
-
-step_fits:
-    b++;
-    if (!(a->type & JSON_PATH_DOUBLE_WILD))
-    {
-      a++;
-      continue;
-    }
-
-    /* Double wild handling needs recursions. */
-    res= json_path_parts_compare(a+1, a_end, b, b_end, vt);
-    if (res == 0)
-      return 0;
-
-    res2= json_path_parts_compare(a, a_end, b, b_end, vt);
-
-    return (res2 >= 0) ? res2 : res;
-
-step_fits_autowrap:
-    if (!(a->type & JSON_PATH_DOUBLE_WILD))
-    {
-      a++;
-      continue;
-    }
-
-    /* Double wild handling needs recursions. */
-    res= json_path_parts_compare(a+1, a_end, b+1, b_end, vt);
-    if (res == 0)
-      return 0;
-
-    res2= json_path_parts_compare(a, a_end, b+1, b_end, vt);
-
-    return (res2 >= 0) ? res2 : res;
-
-  }
-
-  return b <= b_end;
-}
-
-
-int json_path_compare(const json_path_t *a, const json_path_t *b,
-                      enum json_value_types vt)
-{
-  return json_path_parts_compare(a->steps+1, a->last_step,
-                                 b->steps+1, b->last_step, vt);
-}
-
-
 static enum json_types smart_read_value(json_engine_t *je,
                                         const char **value, int *value_len)
 {
@@ -2012,7 +1911,43 @@ enum json_types json_get_object_nkey(const char *js __attribute__((unused)),
                                      const char **value __attribute__((unused)),
                                      int *value_len __attribute__((unused)))
 {
-  return JSV_NOTHING;
+  json_engine_t je;
+  int keys_found= 0;
+
+  json_scan_start(&je, &my_charset_utf8mb4_bin,(const uchar *) js,
+                  (const uchar *) js_end);
+
+  if (json_read_value(&je) ||
+      je.value_type != JSON_VALUE_OBJECT)
+    goto err_return;
+
+  while (!json_scan_next(&je))
+  {
+    switch (je.state)
+    {
+    case JST_KEY:
+      if (nkey == keys_found)
+      {
+        *keyname= (char *) je.s.c_str;
+        while (json_read_keyname_chr(&je) == 0)
+          *keyname_end= (char *) je.s.c_str;
+
+        return smart_read_value(&je, value, value_len);
+      }
+
+      keys_found++;
+      if (json_skip_key(&je))
+        goto err_return;
+
+      break;
+
+    case JST_OBJ_END:
+      return JSV_NOTHING;
+    }
+  }
+
+err_return:
+  return JSV_BAD_JSON;
 }
 
 

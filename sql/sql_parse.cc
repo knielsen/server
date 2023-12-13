@@ -1313,7 +1313,13 @@ bool do_command(THD *thd)
     DBUG_ASSERT(!thd->mdl_context.has_locks());
     DBUG_ASSERT(!thd->get_stmt_da()->is_set());
     /* We let COM_QUIT and COM_STMT_CLOSE to execute even if wsrep aborted. */
-    if (command != COM_STMT_CLOSE &&
+    if (command == COM_STMT_EXECUTE)
+    {
+      WSREP_DEBUG("PS BF aborted at do_command");
+      thd->wsrep_delayed_BF_abort= true;
+    }
+    if (command != COM_STMT_CLOSE   &&
+	command != COM_STMT_EXECUTE &&
         command != COM_QUIT)
     {
       my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -1384,6 +1390,17 @@ out:
   {
     /* there was a command to process, and before_command() has been called */
     wsrep_after_command_after_result(thd);
+  }
+
+  if (thd->wsrep_delayed_BF_abort)
+  {
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      WSREP_DEBUG("Deadlock error for PS query: %s", thd->query());
+      thd->reset_killed();
+      thd->mysys_var->abort     = 0;
+      thd->wsrep_retry_counter  = 0;
+
+      thd->wsrep_delayed_BF_abort= false;
   }
 #endif /* WITH_WSREP */
   DBUG_RETURN(return_value);
@@ -1738,7 +1755,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
       auth_rc= acl_authenticate(thd, packet_length);
 
-    mysql_audit_notify_connection_change_user(thd);
+    mysql_audit_notify_connection_change_user(thd, &save_security_ctx);
     if (auth_rc)
     {
       /* Free user if allocated by acl_authenticate */
@@ -2232,15 +2249,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     size_t length=
 #endif
     my_snprintf(buff, buff_len - 1,
-                        "Uptime: %lu  Threads: %d  Questions: %lu  "
+                        "Uptime: %lu  Threads: %u  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lld  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
-                        uptime,
-                        (int) thread_count, (ulong) thd->query_id,
+                        uptime, THD_count::value(), (ulong) thd->query_id,
                         current_global_status_var->long_query_count,
                         current_global_status_var->opened_tables,
-                        tdc_refresh_version(),
-                        tc_records(),
+                        tdc_refresh_version(), tc_records(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
 #ifdef EMBEDDED_LIBRARY

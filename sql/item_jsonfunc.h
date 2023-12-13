@@ -23,7 +23,9 @@
 #include <json_lib.h>
 #include "item_cmpfunc.h"      // Item_bool_func
 #include "item_strfunc.h"      // Item_str_func
-
+#include "item_sum.h"
+#include "sql_type_json.h"
+#include "json_schema.h"
 
 class json_path_with_flags
 {
@@ -39,6 +41,23 @@ public:
   }
 };
 
+void report_path_error_ex(const char *ps, json_path_t *p,
+                          const char *fname, int n_param,
+                          Sql_condition::enum_warning_level lv);
+void report_json_error_ex(const char *js, json_engine_t *je,
+                          const char *fname, int n_param,
+                          Sql_condition::enum_warning_level lv);
+int check_overlaps(json_engine_t *js, json_engine_t *value, bool compare_whole);
+int json_find_overlap_with_object(json_engine_t *js,
+                                              json_engine_t *value,
+                                              bool compare_whole);
+void json_skip_current_level(json_engine_t *js, json_engine_t *value);
+bool json_find_overlap_with_scalar(json_engine_t *js, json_engine_t *value);
+bool json_compare_arrays_in_order_in_order(json_engine_t *js, json_engine_t *value);
+bool json_compare_arr_and_obj(json_engine_t *js, json_engine_t* value);
+int json_find_overlap_with_array(json_engine_t *js,
+                                             json_engine_t *value,
+                                             bool compare_whole);
 
 class Item_func_json_valid: public Item_bool_func
 {
@@ -58,6 +77,19 @@ public:
   }
   Item *get_copy(THD *thd)
   { return get_item_copy<Item_func_json_valid>(thd, this); }
+};
+
+
+class Item_func_json_equals: public Item_bool_func
+{
+public:
+  Item_func_json_equals(THD *thd, Item *a, Item *b):
+    Item_bool_func(thd, a, b) {}
+  const char *func_name() const { return "json_equals"; }
+  bool fix_length_and_dec() override;
+  Item *get_copy(THD *thd) override
+  { return get_item_copy<Item_func_json_equals>(thd, this); }
+  longlong val_int() override;
 };
 
 
@@ -306,6 +338,20 @@ public:
   { return get_item_copy<Item_func_json_merge_patch>(thd, this); }
 };
 
+
+class Item_func_json_normalize: public Item_str_func
+{
+public:
+  Item_func_json_normalize(THD *thd, Item *a):
+    Item_str_func(thd, a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "json_normalize"; }
+  bool fix_length_and_dec() override;
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_json_normalize>(thd, this); }
+};
+
+
 class Item_func_json_length: public Item_long_func
 {
   bool check_arguments() const
@@ -469,4 +515,45 @@ public:
 };
 
 
+extern bool is_json_type(const Item *item);
+
+class Item_func_json_overlaps: public Item_bool_func
+{
+  String tmp_js;
+  bool a2_constant, a2_parsed;
+  String tmp_val, *val;
+public:
+  Item_func_json_overlaps(THD *thd, Item *a, Item *b):
+    Item_bool_func(thd, a, b) {}
+  const char *func_name() const { return "json_overlaps"; }
+  bool fix_length_and_dec() override;
+  longlong val_int() override;
+  Item *get_copy(THD *thd) override
+  { return get_item_copy<Item_func_json_overlaps>(thd, this); }
+};
+
+
+class Item_func_json_schema_valid: public Item_bool_func
+{
+  String tmp_js;
+  bool schema_parsed;
+  String tmp_val, *val;
+  List<Json_schema_keyword> keyword_list;
+  List<Json_schema_keyword> all_keywords;
+
+public:
+  Item_func_json_schema_valid(THD *thd, Item *a, Item *b):
+    Item_bool_func(thd, a, b)
+    {
+      val= NULL;
+      schema_parsed= false;
+      maybe_null= true;
+    }
+  const char *func_name() const { return "json_schema_valid"; }
+  bool fix_length_and_dec() override;
+  longlong val_int() override;
+  Item *get_copy(THD *thd) override
+  { return get_item_copy<Item_func_json_schema_valid>(thd, this); }
+  void cleanup() override;
+};
 #endif /* ITEM_JSONFUNC_INCLUDED */

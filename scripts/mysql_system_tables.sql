@@ -332,6 +332,18 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+CREATE TABLE IF NOT EXISTS server_audit_filters (
+    filtername char(80) COLLATE utf8_bin NOT NULL DEFAULT '',
+    rule longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT 'true' CHECK (json_valid(rule)),
+    CONSTRAINT c_filtername UNIQUE (filtername)
+) ENGINE=Aria;
+
+CREATE TABLE IF NOT EXISTS server_audit_users (host char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+    user char(80) COLLATE utf8_bin NOT NULL DEFAULT '',
+    filtername char(80) NOT NULL DEFAULT '',
+    CONSTRAINT c_host_user UNIQUE (host, user)
+) ENGINE=Aria;
+
 set storage_engine=@orig_storage_engine;
 
 --

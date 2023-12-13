@@ -329,6 +329,13 @@ typedef struct st_mysql_res {
 } MYSQL_RES;
 
 
+/*
+  We should not define MYSQL_CLIENT when the mysql.h is included
+  by the server or server plugins.
+  Now it is important only for the SQL service to work so we rely on
+  the MYSQL_SERVICE_SQL to check we're compiling the server/plugin
+  related file.
+*/
 #if !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT)
 #define MYSQL_CLIENT
 #endif
@@ -654,7 +661,7 @@ enum enum_mysql_stmt_state
 
   length         - On input: in case when lengths of input values
                    are different for each execute, you can set this to
-                   point at a variable containining value length. This
+                   point at a variable containing value length. This
                    way the value length can be different in each execute.
                    If length is not NULL, buffer_length is not used.
                    Note, length can even point at buffer_length if

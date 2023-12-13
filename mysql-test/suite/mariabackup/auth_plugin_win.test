@@ -18,11 +18,11 @@ INSTALL SONAME 'auth_named_pipe';
 --replace_result $USERNAME USERNAME
 eval CREATE USER '$USERNAME' IDENTIFIED WITH named_pipe;
 --replace_result $USERNAME USERNAME
-eval GRANT ALL PRIVILEGES ON *.* to $USERNAME;
+eval GRANT ALL PRIVILEGES ON *.* to '$USERNAME';
 
 let $targetdir=$MYSQLTEST_VARDIR/tmp/backup;
 --disable_result_log
-exec $XTRABACKUP --defaults-file=$MYSQLTEST_VARDIR/my.cnf -u $USERNAME --backup --protocol=pipe --target-dir=$targetdir;
+exec $XTRABACKUP --defaults-file=$MYSQLTEST_VARDIR/my.cnf -u $USERNAME --backup --parallel=10 --protocol=pipe --target-dir=$targetdir;
 --enable_result_log
 --replace_result $USERNAME USERNAME
 eval DROP USER '$USERNAME';

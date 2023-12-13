@@ -15,10 +15,11 @@
 
 
 OPTION(WITH_MARIABACKUP "Include mariabackup" ON)
+# ADD_FEATURE_INFO(MARIABACKUP WITH_MARIABACKUP "MariaDB Backup Utility")
+
 IF(NOT WITH_MARIABACKUP)
   RETURN()
 ENDIF()
-
 
 IF(NOT WIN32)
   CHECK_SYMBOL_EXISTS(regcomp regex.h HAVE_SYSTEM_REGEX)
@@ -27,10 +28,10 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/storage/maria
   ${CMAKE_CURRENT_SOURCE_DIR}/quicklz
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/crc
@@ -74,6 +75,10 @@ MYSQL_ADD_EXECUTABLE(mariabackup
   backup_mysql.cc
   backup_copy.cc
   encryption_plugin.cc
+  aria_backup_client.cc
+  thread_pool.cc
+  ddl_log.cc
+  common_engine.cc
   ${PROJECT_SOURCE_DIR}/sql/net_serv.cc
   ${NT_SERVICE_SOURCE}
   ${PROJECT_SOURCE_DIR}/libmysqld/libmysql.c
@@ -81,12 +86,14 @@ MYSQL_ADD_EXECUTABLE(mariabackup
   )
 
 
+
+
 # Export all symbols on Unix, for better crash callstacks
 SET_TARGET_PROPERTIES(mariabackup PROPERTIES ENABLE_EXPORTS TRUE)
 ADD_SUBDIRECTORY(crc)
 
 
-TARGET_LINK_LIBRARIES(mariabackup sql crc)
+TARGET_LINK_LIBRARIES(mariabackup sql crc aria)
 
 IF(NOT HAVE_SYSTEM_REGEX)
   TARGET_LINK_LIBRARIES(mariabackup pcreposix)

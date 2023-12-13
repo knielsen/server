@@ -128,7 +128,7 @@ SET (SQL_SOURCE
                gcalc_slicescan.cc gcalc_tools.cc
                ../sql-common/mysql_async.c
                my_apc.cc mf_iocache_encr.cc item_jsonfunc.cc
-               my_json_writer.cc
+               my_json_writer.cc json_schema.cc json_schema_helper.cc
                rpl_gtid.cc rpl_parallel.cc
                semisync.cc semisync_master.cc semisync_slave.cc
                semisync_master_ack_receiver.cc
@@ -406,6 +406,11 @@ ADD_CUSTOM_TARGET(distclean
   )
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
+
+SET(ENTERPRISE_CNF_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/mariadb-enterprise.cnf)
+INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
+INSTALL(FILES ${MY_CNF_FILE} DESTINATION etc/ COMPONENT Common)
+INSTALL(FILES ${ENTERPRISE_CNF_FILE} DESTINATION etc/my.cnf.d COMPONENT Common)
 
 # Install initial database on windows
 IF(WIN32 AND TARGET mysqld AND NOT CMAKE_CROSSCOMPILING)

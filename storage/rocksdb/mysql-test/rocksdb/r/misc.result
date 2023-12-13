@@ -78,6 +78,9 @@ proxies_priv	User	NULL	NULL
 roles_mapping	Host	NULL	NULL
 roles_mapping	Role	NULL	NULL
 roles_mapping	User	NULL	NULL
+server_audit_filters	filtername	NULL	NULL
+server_audit_users	host	NULL	NULL
+server_audit_users	user	NULL	NULL
 servers	Server_name	NULL	NULL
 table_stats	db_name	NULL	NULL
 table_stats	table_name	NULL	NULL

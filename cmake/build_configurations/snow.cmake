@@ -1,0 +1,57 @@
+include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
+
+set(compiler_flags "-g -O3 -Wl,-z,relro,-z,now -Wa,-mbranches-within-32B-boundaries")
+
+# Default type is BOOL. Must specify type for non-yet-existent cached variables.
+# This could be much better if normal variables worked like -D
+
+setc(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+setc(CMAKE_INSTALL_MESSAGE LAZY STRING)
+setc(CMAKE_RULE_MESSAGES OFF)
+setc(CONC_WITH_DYNCOL ON)
+setc(CONC_WITH_UNIT_TESTS ON)
+setc(DISABLE_SHARED OFF)
+setc(ENABLED_PROFILING ON)
+setc(ENABLE_DTRACE ON)
+setc(GSSAPI_FOUND TRUE STRING)
+setc(MAX_INDEXES 128 STRING)
+setc(MUTEXTYPE event STRING)
+setc(MYSQL_MAINTAINER_MODE AUTO STRING)
+setc(MySQL_IS_TOP_LEVEL ON STATIC) 
+setc(PCRE_IS_TOP_LEVEL OFF STATIC)
+setc(SECURITY_HARDENED ON)
+setc(UPDATE_SUBMODULES ON)
+setc(USE_ARIA_FOR_TMP_TABLES ON)
+setc(WITH_DBUG_TRACE OFF)
+setc(WITH_INNODB_DISALLOW_WRITES ON)
+setc(WITH_INNODB_LZMA OFF STRING)
+setc(WITH_NUMA AUTO STRING)
+setc(WITH_PCRE bundled STRING) 
+setc(WITH_SAFEMALLOC AUTO STRING)
+setc(WITH_UNIT_TESTS ON)
+setc(WITH_WSREP ON)
+setc(WSREP_LIB_MAINTAINER_MODE OFF)
+setc(WSREP_LIB_STRICT_BUILD_FLAGS OFF)
+setc(WSREP_LIB_WITH_ASAN OFF)
+setc(WSREP_LIB_WITH_COVERAGE OFF)
+setc(WSREP_LIB_WITH_DBSIM OFF)
+setc(WSREP_LIB_WITH_DOCUMENTATION OFF)
+setc(WSREP_LIB_WITH_TSAN OFF)
+setc(WSREP_LIB_WITH_UNIT_TESTS OFF)
+
+set(plugins_to_exclude
+  PLUGIN_ARCHIVE
+  PLUGIN_AUTH_GSSAPI
+  PLUGIN_AUTH_PAM
+  PLUGIN_CONNECT
+  PLUGIN_MROONGA
+  PLUGIN_ROCKSDB
+  PLUGIN_SPHINX
+  PLUGIN_SPIDER
+  PLUGIN_TOKUDB
+  PLUGIN_CRACKLIB_PASSWORD_CHECK
+)
+
+set_compiler_and_linker_flags("SNOW" "${compiler_flags}" "${linker_flags}")
+make_plugins_static_if_shared_libs_are_disabled()
+exclude_plugins("${plugins_to_exclude}")

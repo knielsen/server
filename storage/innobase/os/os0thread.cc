@@ -160,7 +160,25 @@ os_thread_join(
 	os_thread_id_t	thread)
 {
 #ifdef _WIN32
-	/* Do nothing. */
+	HANDLE handle = OpenThread(SYNCHRONIZE, FALSE, thread);
+
+	if (!handle) {
+#ifdef UNIV_DEBUG
+		DWORD error = GetLastError();
+		ut_ad(error == ERROR_INVALID_PARAMETER);
+#endif /* UNIV_DEBUG */
+		return;
+	}
+
+#ifdef UNIV_DEBUG
+	DWORD ret =
+#endif /* UNIV_DEBUG */
+	WaitForSingleObject(handle, INFINITE);
+	ut_ad(ret == WAIT_OBJECT_0);
+
+	CloseHandle(handle);
+
+	return;
 #else
 #ifdef UNIV_DEBUG
 	const int	ret =

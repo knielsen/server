@@ -25,6 +25,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.roles_mapping                                OK
+mysql.server_audit_filters                         OK
+mysql.server_audit_users                           OK
 mysql.servers                                      OK
 mysql.table_stats                                  OK
 mysql.tables_priv                                  OK
@@ -59,6 +61,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.roles_mapping                                OK
+mysql.server_audit_filters                         OK
+mysql.server_audit_users                           OK
 mysql.servers                                      OK
 mysql.table_stats                                  OK
 mysql.tables_priv                                  OK
@@ -89,6 +93,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.roles_mapping                                OK
+mysql.server_audit_filters                         OK
+mysql.server_audit_users                           OK
 mysql.servers                                      OK
 mysql.table_stats                                  OK
 mysql.tables_priv                                  OK
@@ -121,6 +127,8 @@ mysql.proc                                         Table is already up to date
 mysql.procs_priv                                   Table is already up to date
 mysql.proxies_priv                                 Table is already up to date
 mysql.roles_mapping                                Table is already up to date
+mysql.server_audit_filters                         Table is already up to date
+mysql.server_audit_users                           Table is already up to date
 mysql.servers                                      Table is already up to date
 mysql.table_stats                                  Table is already up to date
 mysql.tables_priv                                  Table is already up to date
@@ -451,6 +459,8 @@ mysql.proc                                         Table is already up to date
 mysql.procs_priv                                   Table is already up to date
 mysql.proxies_priv                                 Table is already up to date
 mysql.roles_mapping                                Table is already up to date
+mysql.server_audit_filters                         Table is already up to date
+mysql.server_audit_users                           Table is already up to date
 mysql.servers                                      Table is already up to date
 mysql.table_stats                                  Table is already up to date
 mysql.tables_priv                                  Table is already up to date

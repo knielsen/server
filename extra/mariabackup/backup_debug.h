@@ -15,10 +15,13 @@ To use this facility, you need to
 3. start mariabackup with --dbug=+d,debug_mariabackup_events
 */
 extern void dbug_mariabackup_event(
-	const char *event,const char *key);
+	const char *event,const char *key, bool need_lock);
 #define DBUG_MARIABACKUP_EVENT(A, B) \
 	DBUG_EXECUTE_IF("mariabackup_events", \
-		dbug_mariabackup_event(A,B););
+		dbug_mariabackup_event(A,B, false););
+#define DBUG_MARIABACKUP_EVENT_LOCK(A, B) \
+	DBUG_EXECUTE_IF("mariabackup_events", \
+		dbug_mariabackup_event(A,B, true););
 #define DBUG_EXECUTE_FOR_KEY(EVENT, KEY, CODE) \
 	DBUG_EXECUTE_IF("mariabackup_inject_code", {\
 		char *dbug_val = dbug_mariabackup_get_val(EVENT, KEY); \

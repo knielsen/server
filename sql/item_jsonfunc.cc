@@ -18,7 +18,8 @@
 #include "sql_priv.h"
 #include "sql_class.h"
 #include "item.h"
-
+#include "sql_parse.h" // For check_stack_overrun
+#include "json_schema_helper.h"
 
 /*
   Compare ASCII string against the string with the specified
@@ -128,21 +129,136 @@ static int append_tab(String *js, int depth, int tab_size)
   return 0;
 }
 
+int json_path_parts_compare(
+    const json_path_step_t *a, const json_path_step_t *a_end,
+    const json_path_step_t *b, const json_path_step_t *b_end,
+    enum json_value_types vt)
+{
+  int res, res2;
+
+  DBUG_EXECUTE_IF("json_check_min_stack_requirement",
+                  {
+                    long arbitrary_var;
+                    long stack_used_up= (available_stack_size(current_thd->thread_stack, &arbitrary_var));
+                    ALLOCATE_MEM_ON_STACK(my_thread_stack_size-stack_used_up-STACK_MIN_SIZE);
+                  });
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE , NULL))
+    return 1;
+
+  while (a <= a_end)
+  {
+    if (b > b_end)
+    {
+      while (vt != JSON_VALUE_ARRAY &&
+             (a->type & JSON_PATH_ARRAY_WILD) == JSON_PATH_ARRAY &&
+             a->n_item == 0)
+      {
+        if (++a > a_end)
+          return 0;
+      }
+      return -2;
+    }
+
+    DBUG_ASSERT((b->type & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD)) == 0);
+
+
+    if (a->type & JSON_PATH_ARRAY)
+    {
+      if (b->type & JSON_PATH_ARRAY)
+      {
+        if ((a->type & JSON_PATH_WILD) || a->n_item == b->n_item)
+          goto step_fits;
+        goto step_failed;
+      }
+      if ((a->type & JSON_PATH_WILD) == 0 && a->n_item == 0)
+        goto step_fits_autowrap;
+      goto step_failed;
+    }
+    else /* JSON_PATH_KEY */
+    {
+      if (!(b->type & JSON_PATH_KEY))
+        goto step_failed;
+
+      if (!(a->type & JSON_PATH_WILD) &&
+          (a->key_end - a->key != b->key_end - b->key ||
+           memcmp(a->key, b->key, a->key_end - a->key) != 0))
+        goto step_failed;
+
+      goto step_fits;
+    }
+step_failed:
+    if (!(a->type & JSON_PATH_DOUBLE_WILD))
+      return -1;
+    b++;
+    continue;
+
+step_fits:
+    b++;
+    if (!(a->type & JSON_PATH_DOUBLE_WILD))
+    {
+      a++;
+      continue;
+    }
+
+    /* Double wild handling needs recursions. */
+    res= json_path_parts_compare(a+1, a_end, b, b_end, vt);
+    if (res == 0)
+      return 0;
+
+    res2= json_path_parts_compare(a, a_end, b, b_end, vt);
+
+    return (res2 >= 0) ? res2 : res;
+
+step_fits_autowrap:
+    if (!(a->type & JSON_PATH_DOUBLE_WILD))
+    {
+      a++;
+      continue;
+    }
+
+    /* Double wild handling needs recursions. */
+    res= json_path_parts_compare(a+1, a_end, b+1, b_end, vt);
+    if (res == 0)
+      return 0;
+
+    res2= json_path_parts_compare(a, a_end, b+1, b_end, vt);
+
+    return (res2 >= 0) ? res2 : res;
+
+  }
+
+  return b <= b_end;
+}
+
+
+int json_path_compare(const json_path_t *a, const json_path_t *b,
+                      enum json_value_types vt)
+{
+  return json_path_parts_compare(a->steps+1, a->last_step,
+                                 b->steps+1, b->last_step, vt);
+}
+
 
 static int json_nice(json_engine_t *je, String *nice_js,
                      Item_func_json_format::formats mode, int tab_size=4)
 {
   int depth= 0;
-  const char *comma, *colon;
+  static const char *comma= ", ", *colon= "\": ";
   uint comma_len, colon_len;
   int first_value= 1;
-
-  DBUG_ASSERT(je->s.cs == nice_js->charset());
+  int value_size = 0;
+  int curr_state= -1;
+  int64_t value_len= 0;
+  String curr_str{};
+  
+  nice_js->length(0);
+  nice_js->set_charset(je->s.cs);
+  nice_js->alloc(je->s.str_end - je->s.c_str + 32);
+  
+  
   DBUG_ASSERT(mode != Item_func_json_format::DETAILED ||
               (tab_size >= 0 && tab_size <= TAB_SIZE_LIMIT));
 
-  comma= ", ";
-  colon= "\": ";
   if (mode == Item_func_json_format::LOOSE)
   {
     comma_len= 2;
@@ -161,6 +277,7 @@ static int json_nice(json_engine_t *je, String *nice_js,
 
   do
   {
+    curr_state= je->state;
     switch (je->state)
     {
     case JST_KEY:
@@ -183,7 +300,7 @@ static int json_nice(json_engine_t *je, String *nice_js,
             append_tab(nice_js, depth, tab_size))
           goto error;
 
-        nice_js->append("\"", 1);
+        nice_js->append('"');
         append_simple(nice_js, key_start, key_end - key_start);
         nice_js->append(colon, colon_len);
       }
@@ -208,17 +325,23 @@ handle_value:
         if (append_simple(nice_js, je->value_begin,
                           je->value_end - je->value_begin))
           goto error;
-
+        
+        curr_str.copy((const char *)je->value_begin,
+                      je->value_end - je->value_begin, je->s.cs);
+        value_len= je->value_end - je->value_begin;
         first_value= 0;
+        if (value_size != -1)
+          value_size++;
       }
       else
       {
         if (mode == Item_func_json_format::DETAILED &&
-            depth > 0 &&
+            depth > 0 && !(curr_state != JST_KEY) &&
             append_tab(nice_js, depth, tab_size))
           goto error;
         nice_js->append((je->value_type == JSON_VALUE_OBJECT) ? "{" : "[", 1);
         first_value= 1;
+        value_size= (je->value_type == JSON_VALUE_OBJECT) ? -1: 0;
         depth++;
       }
 
@@ -227,11 +350,27 @@ handle_value:
     case JST_OBJ_END:
     case JST_ARRAY_END:
       depth--;
-      if (mode == Item_func_json_format::DETAILED &&
+      if (mode == Item_func_json_format::DETAILED && (value_size > 1 || value_size == -1) &&
           append_tab(nice_js, depth, tab_size))
         goto error;
+        
+      if (mode == Item_func_json_format::DETAILED && 
+          value_size == 1 && je->state != JST_OBJ_END)
+      {
+        for (auto i = 0; i < value_len; i++)
+        {
+          nice_js->chop();
+        }
+        for (auto i = 0; i < (depth + 1) * tab_size + 1; i++)
+        {
+          nice_js->chop();
+        }
+        nice_js->append(curr_str);
+      }
+      
       nice_js->append((je->state == JST_OBJ_END) ? "}": "]", 1);
       first_value= 0;
+      value_size= -1;
       break;
 
     default:
@@ -382,6 +521,66 @@ longlong Item_func_json_valid::val_int()
 }
 
 
+bool Item_func_json_equals::fix_length_and_dec()
+{
+  if (Item_bool_func::fix_length_and_dec())
+    return TRUE;
+  maybe_null= true;
+  return FALSE;
+}
+
+
+longlong Item_func_json_equals::val_int()
+{
+  longlong result= 0;
+
+  String a_tmp, b_tmp;
+
+  String *a= args[0]->val_json(&a_tmp);
+  String *b= args[1]->val_json(&b_tmp);
+
+  DYNAMIC_STRING a_res;
+  if (init_dynamic_string(&a_res, NULL, 0, 0))
+  {
+    null_value= 1;
+    return 1;
+  }
+
+  DYNAMIC_STRING b_res;
+  if (init_dynamic_string(&b_res, NULL, 0, 0))
+  {
+    dynstr_free(&a_res);
+    null_value= 1;
+    return 1;
+  }
+
+  if ((null_value= args[0]->null_value || args[1]->null_value))
+  {
+    null_value= 1;
+    goto end;
+  }
+
+  if (json_normalize(&a_res, a->c_ptr(), a->length(), a->charset()))
+  {
+    null_value= 1;
+    goto end;
+  }
+
+  if (json_normalize(&b_res, b->c_ptr(), b->length(), b->charset()))
+  {
+    null_value= 1;
+    goto end;
+  }
+
+  result= strcmp(a_res.str, b_res.str) ? 0 : 1;
+
+end:
+  dynstr_free(&b_res);
+  dynstr_free(&a_res);
+  return result;
+}
+
+
 bool Item_func_json_exists::fix_length_and_dec()
 {
   if (Item_bool_func::fix_length_and_dec())
@@ -488,6 +687,12 @@ continue_search:
 
   if (json_read_value(&je))
     goto err_return;
+
+  if (je.value_type == JSON_VALUE_NULL)
+  {
+    null_value= 1;
+    return NULL;
+  }
 
   if (unlikely(check_and_get_value(&je, str, &error)))
   {
@@ -979,13 +1184,14 @@ my_decimal *Item_func_json_extract::val_decimal(my_decimal *to)
       case JSON_VALUE_OBJECT:
       case JSON_VALUE_ARRAY:
       case JSON_VALUE_FALSE:
+      case JSON_VALUE_UNINITIALIZED:
       case JSON_VALUE_NULL:
-      case JSON_VALUE_UNINITALIZED:
-      break;
+        int2my_decimal(E_DEC_FATAL_ERROR, 0, false/*unsigned_flag*/, to);
+        return to;
     };
   }
-  int2my_decimal(E_DEC_FATAL_ERROR, 0, false/*unsigned_flag*/, to);
-  return to;
+  DBUG_ASSERT(null_value);
+  return 0;
 }
 
 
@@ -1023,6 +1229,14 @@ static int check_contains(json_engine_t *js, json_engine_t *value)
 {
   json_engine_t loc_js;
   bool set_js;
+  DBUG_EXECUTE_IF("json_check_min_stack_requirement",
+                  {
+                    long arbitrary_var;
+                    long stack_used_up= (available_stack_size(current_thd->thread_stack, &arbitrary_var));
+                    ALLOCATE_MEM_ON_STACK(my_thread_stack_size-stack_used_up-STACK_MIN_SIZE);
+                  });
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE , NULL))
+    return 1;
 
   switch (js->value_type)
   {
@@ -1912,6 +2126,16 @@ err_return:
 
 static int do_merge(String *str, json_engine_t *je1, json_engine_t *je2)
 {
+
+  DBUG_EXECUTE_IF("json_check_min_stack_requirement",
+                  {
+                    long arbitrary_var;
+                    long stack_used_up= (available_stack_size(current_thd->thread_stack, &arbitrary_var));
+                    ALLOCATE_MEM_ON_STACK(my_thread_stack_size-stack_used_up-STACK_MIN_SIZE);
+                  });
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE , NULL))
+    return 1;
+
   if (json_read_value(je1) || json_read_value(je2))
     return 1;
 
@@ -2244,6 +2468,15 @@ static int copy_value_patch(String *str, json_engine_t *je)
 static int do_merge_patch(String *str, json_engine_t *je1, json_engine_t *je2,
                           bool *empty_result)
 {
+  DBUG_EXECUTE_IF("json_check_min_stack_requirement",
+                  {
+                    long arbitrary_var;
+                    long stack_used_up= (available_stack_size(current_thd->thread_stack, &arbitrary_var));
+                    ALLOCATE_MEM_ON_STACK(my_thread_stack_size-stack_used_up-STACK_MIN_SIZE);
+                  });
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE , NULL))
+    return 1;
+
   if (json_read_value(je1) || json_read_value(je2))
     return 1;
 
@@ -2445,10 +2678,8 @@ String *Item_func_json_merge_patch::val_str(String *str)
       if (json_read_value(&je2))
         goto error_return;
       if (je2.value_type == JSON_VALUE_OBJECT)
-      {
-        merge_to_null= true;
         goto cont_point;
-      }
+
       merge_to_null= false;
       str->set(js2->ptr(), js2->length(), js2->charset());
       goto cont_point;
@@ -3530,6 +3761,7 @@ const char *Item_func_json_format::func_name() const
 bool Item_func_json_format::fix_length_and_dec()
 {
   decimals= 0;
+  collation.set(args[0]->collation);
   max_length= args[0]->max_length;
   maybe_null= 1;
   return FALSE;
@@ -3661,4 +3893,543 @@ int Arg_comparator::compare_e_json_str_basic(Item *j, Item *s)
   }
 
   return MY_TEST(sortcmp(res1, res2, compare_collation()) == 0);
+}
+
+
+String *Item_func_json_normalize::val_str(String *buf)
+{
+  String tmp;
+  String *raw_json= args[0]->val_str(&tmp);
+
+  DYNAMIC_STRING normalized_json;
+  if (init_dynamic_string(&normalized_json, NULL, 0, 0))
+  {
+    null_value= 1;
+    return NULL;
+  }
+
+  null_value= args[0]->null_value;
+  if (null_value)
+    goto end;
+
+  if (json_normalize(&normalized_json,
+                     raw_json->ptr(), raw_json->length(),
+                     raw_json->charset()))
+  {
+    null_value= 1;
+    goto end;
+  }
+
+  buf->length(0);
+  if (buf->append(normalized_json.str, normalized_json.length))
+  {
+    null_value= 1;
+    goto end;
+  }
+
+end:
+  dynstr_free(&normalized_json);
+  return null_value ? NULL : buf;
+}
+
+
+bool Item_func_json_normalize::fix_length_and_dec()
+{
+  collation.set(&my_charset_utf8mb4_bin);
+  /* 0 becomes 0.0E0, thus one character becomes 5 chars */
+  fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * 5);
+  maybe_null= 1;
+  return FALSE;
+}
+
+longlong Item_func_json_schema_valid::val_int()
+{
+  json_engine_t ve;
+  int is_valid= 1;
+
+  if (!schema_parsed)
+  {
+    null_value= 1;
+     return 0;
+  }
+
+   val= args[1]->val_json(&tmp_val);
+
+   if (!val)
+  {
+    null_value= 1;
+    return 0;
+  }
+  null_value= 0;
+
+  if (!val->length())
+    return 1;
+
+  json_scan_start(&ve, val->charset(), (const uchar *) val->ptr(),
+                  (const uchar *) val->end());
+
+  if (json_read_value(&ve))
+    goto end;
+
+  if (!keyword_list.is_empty())
+  {
+    List_iterator <Json_schema_keyword> it(keyword_list);;
+    Json_schema_keyword* curr_keyword= NULL;
+    while ((curr_keyword=it++))
+    {
+      if (curr_keyword->validate(&ve, NULL, NULL))
+      {
+        is_valid= 0;
+        break;
+      }
+    } 
+  }
+
+  if (is_valid && !ve.s.error && !json_scan_ended(&ve))
+  {
+    while (json_scan_next(&ve) == 0) /* no-op */;
+  }
+
+end:
+  if (unlikely(ve.s.error))
+  {
+    is_valid= 0;
+    report_json_error(val, &ve, 1);
+  }
+
+  return is_valid;
+}
+
+/*
+Idea behind implementation:
+JSON schema basically has same structure as that of json object, consisting of
+key-value pairs. So it can be parsed in the same manner as any json object.
+
+However, none of the keywords are mandatory, so making guess about the json value
+type based only on the keywords would be incorrect. Hence we need separate objects
+denoting each keyword.
+
+So during create_object_and_handle_keyword() we create appropriate objects
+based on the keywords and validate each of them individually on the json
+document by calling respective validate() function if the type matches.
+If any of them fails, return false, else return true.
+*/
+bool Item_func_json_schema_valid::fix_length_and_dec()
+{
+  json_engine_t je;
+  bool res= 0;
+
+  String *js= args[0]->val_json(&tmp_js);
+
+  if ((null_value= args[0]->null_value))
+  {
+    null_value= 1;
+    return 0;
+  }
+  json_scan_start(&je, js->charset(), (const uchar *) js->ptr(),
+                  (const uchar *) js->ptr() + js->length());
+  if (!create_object_and_handle_keyword(current_thd, &je, &keyword_list,
+                                          &all_keywords))
+    schema_parsed= true;
+  else
+    schema_parsed= false;
+
+  /*
+    create_object_and_handle_keyword fails when either the json value for
+    keyword is invalid or when there is syntax error. Return NULL in both
+    these cases.
+  */
+  if (!schema_parsed)
+  {
+    if (je.s.error)
+     report_json_error(js, &je, 0);
+    maybe_null= true;
+  }
+
+  return res || Item_bool_func::fix_length_and_dec();
+}
+
+void Item_func_json_schema_valid::cleanup()
+{
+  DBUG_ENTER("Item_func_json_schema_valid::cleanup");
+  Item_bool_func::cleanup();
+
+  List_iterator<Json_schema_keyword> it2(all_keywords);
+  Json_schema_keyword *curr_schema;
+  while ((curr_schema= it2++))
+  {
+    delete curr_schema;
+    curr_schema= nullptr;
+  }
+  all_keywords.empty();
+  keyword_list.empty();
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  When the two values match or don't match we need to return true or false.
+  But we can have some more elements in the array left or some more keys
+  left in the object that we no longer want to compare. In this case,
+  we want to skip the current item.
+*/
+void json_skip_current_level(json_engine_t *js, json_engine_t *value)
+{
+  json_skip_level(js);
+  json_skip_level(value);
+}
+
+
+/* At least one of the two arguments is a scalar. */
+bool json_find_overlap_with_scalar(json_engine_t *js, json_engine_t *value)
+{
+  if (json_value_scalar(value))
+  {
+    if (js->value_type == value->value_type)
+    {
+      if (js->value_type == JSON_VALUE_NUMBER)
+      {
+        double d_j, d_v;
+        char *end;
+        int err;
+
+        d_j= my_strntod(js->s.cs, (char *) js->value, js->value_len, &end, &err);
+        d_v= my_strntod(value->s.cs, (char *) value->value, value->value_len,
+                                   &end, &err);
+
+        return (fabs(d_j - d_v) < 1e-12);
+      }
+      else if (js->value_type == JSON_VALUE_STRING)
+      {
+        return value->value_len == js->value_len &&
+               memcmp(value->value, js->value, value->value_len) == 0;
+      }
+    }
+    return value->value_type == js->value_type;
+  }
+  else if (value->value_type == JSON_VALUE_ARRAY)
+  {
+    while (json_scan_next(value) == 0 && value->state == JST_VALUE)
+    {
+      if (json_read_value(value))
+        return FALSE;
+      if (js->value_type == value->value_type)
+      {
+        int res1= json_find_overlap_with_scalar(js, value);
+        if (res1)
+          return TRUE;
+      }
+      if (!json_value_scalar(value))
+        json_skip_level(value);
+    }
+  }
+  return FALSE;
+}
+
+
+/*
+  Compare when one is object and other is array. This means we are looking
+  for the object in the array. Hence, when value type of an element of the
+  array is object, then compare the two objects entirely. If they are
+  equal return true else return false.
+*/
+bool json_compare_arr_and_obj(json_engine_t *js, json_engine_t *value)
+{
+  st_json_engine_t loc_val= *value;
+  while (json_scan_next(js) == 0 && js->state == JST_VALUE)
+  {
+    if (json_read_value(js))
+      return FALSE;
+    if (js->value_type == JSON_VALUE_OBJECT)
+    {
+      int res1= json_find_overlap_with_object(js, value, true);
+      if (res1)
+        return TRUE;
+      *value= loc_val;
+    }
+    if (!json_value_scalar(js))
+      json_skip_level(js);
+  }
+  return FALSE;
+}
+
+
+bool json_compare_arrays_in_order(json_engine_t *js, json_engine_t *value)
+{
+  bool res= false;
+  while (json_scan_next(js) == 0 && json_scan_next(value) == 0 &&
+         js->state == JST_VALUE && value->state == JST_VALUE)
+  {
+    if (json_read_value(js) || json_read_value(value))
+      return FALSE;
+    if (js->value_type != value->value_type)
+    {
+      json_skip_current_level(js, value);
+      return FALSE;
+    }
+    res= check_overlaps(js, value, true);
+    if (!res)
+    {
+      json_skip_current_level(js, value);
+      return FALSE;
+    }
+  }
+  res= (value->state == JST_ARRAY_END || value->state == JST_OBJ_END ?
+        TRUE : FALSE);
+  json_skip_current_level(js, value);
+  return res;
+}
+
+
+int json_find_overlap_with_array(json_engine_t *js, json_engine_t *value,
+                                 bool compare_whole)
+{
+  if (value->value_type == JSON_VALUE_ARRAY)
+  {
+    if (compare_whole)
+      return json_compare_arrays_in_order(js, value);
+
+    json_engine_t loc_value= *value, current_js= *js;
+
+    while (json_scan_next(js) == 0 && js->state == JST_VALUE)
+    {
+      if (json_read_value(js))
+        return FALSE;
+      current_js= *js;
+      while (json_scan_next(value) == 0 && value->state == JST_VALUE)
+      {
+        if (json_read_value(value))
+          return FALSE;
+        if (js->value_type == value->value_type)
+        {
+          int res1= check_overlaps(js, value, true);
+          if (res1)
+            return TRUE;
+        }
+        else
+        {
+          if (!json_value_scalar(value))
+            json_skip_level(value);
+        }
+        *js= current_js;
+      }
+      *value= loc_value;
+      if (!json_value_scalar(js))
+        json_skip_level(js);
+    }
+    return FALSE;
+  }
+  else if (value->value_type == JSON_VALUE_OBJECT)
+  {
+    if (compare_whole)
+    {
+      json_skip_current_level(js, value);
+      return FALSE;
+    }
+    return json_compare_arr_and_obj(js, value);
+  }
+  else
+    return json_find_overlap_with_scalar(value, js);
+}
+
+
+int json_find_overlap_with_object(json_engine_t *js, json_engine_t *value,
+                                  bool compare_whole)
+{
+  if (value->value_type == JSON_VALUE_OBJECT)
+  {
+    /* Find at least one common key-value pair */
+    json_string_t key_name;
+    bool found_key= false, found_value= false;
+    json_engine_t loc_js= *js;
+    const uchar *k_start, *k_end;
+
+    json_string_set_cs(&key_name, value->s.cs);
+
+    while (json_scan_next(value) == 0 && value->state == JST_KEY)
+    {
+      k_start= value->s.c_str;
+      do
+      {
+        k_end= value->s.c_str;
+      } while (json_read_keyname_chr(value) == 0);
+
+      if (unlikely(value->s.error))
+        return FALSE;
+
+      json_string_set_str(&key_name, k_start, k_end);
+      found_key= find_key_in_object(js, &key_name);
+      found_value= 0;
+
+      if (found_key)
+      {
+        if (json_read_value(js) || json_read_value(value))
+          return FALSE;
+
+        /*
+          The value of key-value pair can be an be anything. If it is an object
+          then we need to compare the whole value and if it is an array then
+          we need to compare the elements in that order. So set compare_whole
+          to true.
+        */
+        if (js->value_type == value->value_type)
+          found_value= check_overlaps(js, value, true);
+        if (found_value)
+        {
+          if (!compare_whole)
+            return TRUE;
+          *js= loc_js;
+        }
+        else
+        {
+          if (compare_whole)
+          {
+            json_skip_current_level(js, value);
+            return FALSE;
+          }
+          *js= loc_js;
+        }
+      }
+      else
+      {
+        if (compare_whole)
+        {
+          json_skip_current_level(js, value);
+          return FALSE;
+        }
+        json_skip_key(value);
+        *js= loc_js;
+      }
+    }
+    json_skip_current_level(js, value);
+    return compare_whole ? TRUE : FALSE;
+  }
+  else if (value->value_type == JSON_VALUE_ARRAY)
+  {
+    if (compare_whole)
+    {
+      json_skip_current_level(js, value);
+      return FALSE;
+    }
+    return json_compare_arr_and_obj(value, js);
+  }
+  return FALSE;
+}
+
+
+/*
+  Find if two json documents overlap
+
+  SYNOPSIS
+    check_overlaps()
+    js     - json document
+    value  - value
+    compare_whole - If true then find full overlap with the document in case of
+                    object and comparing in-order in case of array.
+                    Else find at least one match between two objects or array.
+
+  IMPLEMENTATION
+  We can compare two json datatypes if they are of same type to check if
+  they are equal. When comparing between a json document and json value,
+  there can be following cases:
+  1) When at least one of the two json documents is of scalar type:
+     1.a) If value and json document both are scalar, then return true
+          if they have same type and value.
+     1.b) If json document is scalar but other is array (or vice versa),
+          then return true if array has at least one element of same type
+          and value as scalar.
+     1.c) If one is scalar and other is object, then return false because
+          it can't be compared.
+
+  2) When both arguments are of non-scalar type:
+      2.a) If both arguments are arrays:
+           Iterate over the value and json document. If there exists at least
+           one element in other array of same type and value as that of
+           element in value, then return true else return false.
+      2.b) If both arguments are objects:
+           Iterate over value and json document and if there exists at least
+           one key-value pair common between two objects, then return true,
+           else return false.
+      2.c) If either of json document or value is array and other is object:
+           Iterate over the array, if an element of type object is found,
+           then compare it with the object (which is the other arguemnt).
+           If the entire object matches i.e all they key value pairs match,
+           then return true else return false.
+
+  When we are comparing an object which is nested in other object or nested
+  in an array, we need to compare all the key-value pairs, irrespective of
+  what order they are in as opposed to non-nested where we return true if
+  at least one match is found. However, if we have an array nested in another
+  array, then we compare two arrays in that order i.e we compare
+  i-th element of array 1 with i-th element of array 2.
+
+  RETURN
+    FALSE - If two json documents do not overlap
+    TRUE  - if two json documents overlap
+*/
+int check_overlaps(json_engine_t *js, json_engine_t *value, bool compare_whole)
+{
+  switch (js->value_type)
+  {
+  case JSON_VALUE_OBJECT:
+    return json_find_overlap_with_object(js, value, compare_whole);
+  case JSON_VALUE_ARRAY:
+    return json_find_overlap_with_array(js, value, compare_whole);
+  default:
+    return json_find_overlap_with_scalar(js, value);
+  }
+}
+
+longlong Item_func_json_overlaps::val_int()
+{
+  String *js= args[0]->val_json(&tmp_js);
+  json_engine_t je, ve;
+  int result;
+
+  if ((null_value= args[0]->null_value))
+    return 0;
+
+  if (!a2_parsed)
+  {
+    val= args[1]->val_json(&tmp_val);
+    a2_parsed= a2_constant;
+  }
+
+  if (val == 0)
+  {
+    null_value= 1;
+    return 0;
+  }
+
+  json_scan_start(&je, js->charset(), (const uchar *) js->ptr(),
+                  (const uchar *) js->ptr() + js->length());
+
+  json_scan_start(&ve, val->charset(), (const uchar *) val->ptr(),
+                  (const uchar *) val->end());
+
+  if (json_read_value(&je) || json_read_value(&ve))
+    goto error;
+
+  result= check_overlaps(&je, &ve, false);
+  if (unlikely(je.s.error || ve.s.error))
+    goto error;
+
+  return result;
+
+error:
+  if (je.s.error)
+    report_json_error(js, &je, 0);
+  if (ve.s.error)
+    report_json_error(val, &ve, 1);
+  return 0;
+}
+
+bool Item_func_json_overlaps::fix_length_and_dec()
+{
+  a2_constant= args[1]->const_item();
+  a2_parsed= FALSE;
+  maybe_null= true;
+
+  return Item_bool_func::fix_length_and_dec();
 }

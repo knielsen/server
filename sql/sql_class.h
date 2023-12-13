@@ -193,7 +193,16 @@ extern char empty_c_string[1];
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
+extern "C" unsigned long long thd_query_id(const MYSQL_THD thd);
 extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
+extern "C" const char *thd_priv_user(MYSQL_THD thd,  size_t *length);
+extern "C" const char *thd_priv_host(MYSQL_THD thd,  size_t *length);
+extern "C" const char *thd_user_name(MYSQL_THD thd);
+extern "C" const char *thd_client_host(MYSQL_THD thd);
+extern "C" const char *thd_client_ip(MYSQL_THD thd);
+extern "C" LEX_CSTRING *thd_current_db(MYSQL_THD thd);
+extern "C" int thd_current_status(MYSQL_THD thd);
+extern "C" enum enum_server_command thd_current_command(MYSQL_THD thd);
 
 /**
   @class CSET_STRING
@@ -994,6 +1003,23 @@ static inline bool is_supported_parser_charset(CHARSET_INFO *cs)
 {
   return MY_TEST(cs->mbminlen == 1 && cs->number != 17 /* filename */);
 }
+
+/**
+  A counter of THDs
+
+  It must be specified as a first base class of THD, so that increment is
+  done before any other THD constructors and decrement - after any other THD
+  destructors.
+
+  Destructor unblocks close_conneciton() if there are no more THD's left.
+*/
+struct THD_count
+{
+  static Atomic_counter<uint32_t> count;
+  static uint value() { return static_cast<uint>(count); }
+  THD_count() { count++; }
+  ~THD_count() { count--; }
+};
 
 #ifdef MYSQL_SERVER
 
@@ -2155,22 +2181,6 @@ struct wait_for_commit
 };
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
-
-
-/**
-  A wrapper around thread_count.
-
-  It must be specified as a first base class of THD, so that increment is
-  done before any other THD constructors and decrement - after any other THD
-  destructors.
-
-  Destructor unblocks close_conneciton() if there are no more THD's left.
-*/
-struct THD_count
-{
-  THD_count() { thread_count++; }
-  ~THD_count() { thread_count--; }
-};
 
 
 /**
@@ -3516,6 +3526,11 @@ public:
     user_time= t;
     set_time();
   }
+  inline void force_set_time(my_time_t t, ulong sec_part)
+  {
+    start_time= system_time.sec= t;
+    start_time_sec_part= system_time.sec_part= sec_part;
+  }
   /*
     this is only used by replication and BINLOG command.
     usecs > TIME_MAX_SECOND_PART means "was not in binlog"
@@ -3527,15 +3542,9 @@ public:
     else
     {
       if (sec_part <= TIME_MAX_SECOND_PART)
-      {
-        start_time= system_time.sec= t;
-        start_time_sec_part= system_time.sec_part= sec_part;
-      }
+        force_set_time(t, sec_part);
       else if (t != system_time.sec)
-      {
-        start_time= system_time.sec= t;
-        start_time_sec_part= system_time.sec_part= 0;
-      }
+        force_set_time(t, 0);
       else
       {
         start_time= t;
@@ -4893,6 +4902,10 @@ public:
   bool                      wsrep_ignore_table;
   /* thread who has started kill for this THD protected by LOCK_thd_data*/
   my_thread_id              wsrep_aborter;
+
+  /* true if BF abort is observed in do_command() right after reading
+  client's packet, and if the client has sent PS execute command. */
+  bool                      wsrep_delayed_BF_abort;
 
   /*
     Transaction id:

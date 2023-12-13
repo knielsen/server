@@ -1,0 +1,37 @@
+# general tests for the audit plugin to test defaults when users are not defined
+
+--source include/not_embedded.inc
+
+if (!$SERVER_AUDIT2_SO) {
+  skip No SERVER_AUDIT2 plugin;
+}
+
+--source server_audit2_init.inc
+
+# activate logging without filter definitions
+set global server_audit_logging=on;
+--source server_audit2_commands.inc
+
+
+# logging without users but default filter to log nothing
+INSERT INTO mysql.server_audit_filters VALUES ('default','{"logging" : "off"}');
+SET GLOBAL server_audit_reload_filters=ON;
+SHOW STATUS LIKE "Server_audit_session_filter";
+--source server_audit2_commands.inc
+
+# logging without users but default filter to log everything
+UPDATE mysql.server_audit_filters set rule='{}' where filtername = 'default';
+SET GLOBAL server_audit_reload_filters=ON;
+SHOW STATUS LIKE "Server_audit_session_filter";
+--source server_audit2_commands.inc
+
+# logging with default user
+INSERT INTO mysql.server_audit_filters VALUES ('with_user','{"connect_event" : "ALL"}');
+INSERT INTO mysql.server_audit_users VALUES ('%','root','with_user');
+SET GLOBAL server_audit_reload_filters=ON;
+SHOW STATUS LIKE "Server_audit_session_filter";
+--source server_audit2_commands.inc
+
+# cleanup
+--source server_audit2_cleanup.inc
+

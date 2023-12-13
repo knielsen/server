@@ -224,6 +224,35 @@ private:
   static const uint MAX_SEARCH_DEPTH= 32;
 };
 
+#ifndef DBUG_OFF
+
+/*
+  Print a list of all locks to DBUG trace to help with debugging
+*/
+
+static int mdl_dbug_print_lock(MDL_ticket *mdl_ticket, void *arg, bool granted)
+{
+  String *tmp= (String*) arg;
+  char buffer[128];
+  MDL_key *mdl_key= mdl_ticket->get_key();
+  size_t length;
+  length= my_snprintf(buffer, sizeof(buffer)-1,
+                      "\nname: %s  db: %.*s  key_name: %.*s (%s)",
+                      mdl_ticket->get_type_name()->str,
+                      (int) mdl_key->db_name_length(), mdl_key->db_name(),
+                      (int) mdl_key->name_length(),    mdl_key->name(),
+                      granted ? "granted" : "waiting");
+  tmp->append(buffer, length);
+  return 0;
+}
+
+const char *mdl_dbug_print_locks()
+{
+  static String tmp;
+  mdl_iterate(mdl_dbug_print_lock, (void*) &tmp);
+  return tmp.c_ptr();
+}
+#endif /* DBUG_OFF */
 
 /**
   Enter a node of a wait-for graph. After
@@ -1600,7 +1629,7 @@ MDL_lock::MDL_object_lock::m_waiting_incompatible[MDL_TYPE_END]=
     TD        |  +   +   +   +   +   -   -   +   +   +   +   +   +   +  |
     SD        |  +   +   +   +   -   -   -   +   +   +   +   +   +   +  |
     DDL       |  +   +   +   -   -   -   -   +   +   +   +   -   +   +  |
-    BLOCK_DDL |  +   +   +   +   +   +   +   +   +   +   -   +   +   +  |
+    BLOCK_DDL |  -   +   +   +   +   +   +   +   +   +   -   +   +   +  |
     ALTER_COP |  +   +   +   +   +   -   -   +   +   +   +   +   +   +  |
     COMMIT    |  +   +   +   +   -   +   -   +   +   +   +   +   +   +  |
 
@@ -1639,7 +1668,7 @@ const MDL_lock::bitmap_t
 MDL_lock::MDL_backup_lock::m_granted_incompatible[MDL_BACKUP_END]=
 {
   /* MDL_BACKUP_START */
-  MDL_BIT(MDL_BACKUP_START) | MDL_BIT(MDL_BACKUP_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT),
+  MDL_BIT(MDL_BACKUP_START) | MDL_BIT(MDL_BACKUP_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_BLOCK_DDL),
   MDL_BIT(MDL_BACKUP_START),
   MDL_BIT(MDL_BACKUP_START) | MDL_BIT(MDL_BACKUP_DML),
   MDL_BIT(MDL_BACKUP_START) | MDL_BIT(MDL_BACKUP_DML) | MDL_BIT(MDL_BACKUP_DDL),
@@ -1655,7 +1684,7 @@ MDL_lock::MDL_backup_lock::m_granted_incompatible[MDL_BACKUP_END]=
   /* MDL_BACKUP_DDL */
   MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_FTWRL1) | MDL_BIT(MDL_BACKUP_FTWRL2) | MDL_BIT(MDL_BACKUP_BLOCK_DDL),
   /* MDL_BACKUP_BLOCK_DDL */
-  MDL_BIT(MDL_BACKUP_DDL),
+  MDL_BIT(MDL_BACKUP_START) | MDL_BIT(MDL_BACKUP_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_BLOCK_DDL) | MDL_BIT(MDL_BACKUP_DDL),
   MDL_BIT(MDL_BACKUP_FTWRL1) | MDL_BIT(MDL_BACKUP_FTWRL2),
   /* MDL_BACKUP_COMMIT */
   MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_FTWRL2)
@@ -1666,7 +1695,7 @@ const MDL_lock::bitmap_t
 MDL_lock::MDL_backup_lock::m_waiting_incompatible[MDL_BACKUP_END]=
 {
   /* MDL_BACKUP_START */
-  MDL_BIT(MDL_BACKUP_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT),
+  MDL_BIT(MDL_BACKUP_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_FLUSH) | MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_BLOCK_DDL),
   0,
   0,
   0,
@@ -1682,7 +1711,7 @@ MDL_lock::MDL_backup_lock::m_waiting_incompatible[MDL_BACKUP_END]=
   /* MDL_BACKUP_DDL */
   MDL_BIT(MDL_BACKUP_WAIT_DDL) | MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_FTWRL1) | MDL_BIT(MDL_BACKUP_FTWRL2) | MDL_BIT(MDL_BACKUP_BLOCK_DDL),
   /* MDL_BACKUP_BLOCK_DDL */
-  0,
+  MDL_BIT(MDL_BACKUP_START),
   MDL_BIT(MDL_BACKUP_FTWRL1) | MDL_BIT(MDL_BACKUP_FTWRL2),
   /* MDL_BACKUP_COMMIT */
   MDL_BIT(MDL_BACKUP_WAIT_COMMIT) | MDL_BIT(MDL_BACKUP_FTWRL2)
@@ -2358,7 +2387,9 @@ MDL_context::acquire_lock(MDL_request *mdl_request, double lock_wait_timeout)
     switch (wait_status)
     {
     case MDL_wait::VICTIM:
-      mdl_dbug_print_locks();
+      DBUG_LOCK_FILE;
+      DBUG_PRINT("mdl_locks", ("%s", mdl_dbug_print_locks()));
+      DBUG_UNLOCK_FILE;
       my_error(ER_LOCK_DEADLOCK, MYF(0));
       break;
     case MDL_wait::TIMEOUT:
@@ -2906,6 +2937,10 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
 
 void MDL_ticket::downgrade_lock(enum_mdl_type type)
 {
+  DBUG_ENTER("MDL_ticket::downgrade_lock");
+  DBUG_PRINT("enter",("old_type: %s  new_type: %s",
+                      get_type_name()->str,
+                      get_type_name(type)->str));
   /*
     Do nothing if already downgraded. Used when we FLUSH TABLE under
     LOCK TABLES and a table is listed twice in LOCK TABLES list.
@@ -2914,7 +2949,10 @@ void MDL_ticket::downgrade_lock(enum_mdl_type type)
     here that target lock is weaker than existing lock.
   */
   if (m_type == type || !has_stronger_or_equal_type(type))
-    return;
+  {
+    DBUG_PRINT("info", ("Nothing to downgrade"));
+    DBUG_VOID_RETURN;
+  }
 
   /* Only allow downgrade in some specific known cases */
   DBUG_ASSERT((get_key()->mdl_namespace() != MDL_key::BACKUP &&
@@ -2922,6 +2960,7 @@ void MDL_ticket::downgrade_lock(enum_mdl_type type)
                 m_type == MDL_SHARED_NO_WRITE)) ||
               (get_key()->mdl_namespace() == MDL_key::BACKUP &&
                (m_type == MDL_BACKUP_DDL ||
+                m_type == MDL_BACKUP_BLOCK_DDL ||
                 m_type == MDL_BACKUP_WAIT_FLUSH)));
 
   mysql_prlock_wrlock(&m_lock->m_rwlock);
@@ -2934,6 +2973,7 @@ void MDL_ticket::downgrade_lock(enum_mdl_type type)
   m_lock->m_granted.add_ticket(this);
   m_lock->reschedule_waiters();
   mysql_prlock_unlock(&m_lock->m_rwlock);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3241,34 +3281,3 @@ void MDL_ticket::wsrep_report(bool debug)
               psi_stage->m_name);
 }
 #endif /* WITH_WSREP */
-
-
-#ifndef DBUG_OFF
-
-/*
-  Print a list of all locks to DBUG trace to help with debugging
-*/
-
-static int mdl_dbug_print_lock(MDL_ticket *mdl_ticket, void *arg, bool granted)
-{
-  String *tmp= (String*) arg;
-  char buffer[128];
-  MDL_key *mdl_key= mdl_ticket->get_key();
-  size_t length;
-  length= my_snprintf(buffer, sizeof(buffer)-1,
-                      "\nname: %s  db: %.*s  key_name: %.*s (%s)",
-                      mdl_ticket->get_type_name()->str,
-                      (int) mdl_key->db_name_length(), mdl_key->db_name(),
-                      (int) mdl_key->name_length(),    mdl_key->name(),
-                      granted ? "granted" : "waiting");
-  tmp->append(buffer, length);
-  return 0;
-}
-
-void mdl_dbug_print_locks()
-{
-  String tmp;
-  mdl_iterate(mdl_dbug_print_lock, (void*) &tmp);
-  DBUG_PRINT("mdl_locks", ("%s", tmp.c_ptr()));
-}
-#endif /* DBUG_OFF */

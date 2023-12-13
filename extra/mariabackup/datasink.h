@@ -47,10 +47,15 @@ typedef struct {
 
 struct datasink_struct {
 	ds_ctxt_t *(*init)(const char *root);
-	ds_file_t *(*open)(ds_ctxt_t *ctxt, const char *path, MY_STAT *stat);
+	ds_file_t *(*open)(ds_ctxt_t *ctxt, const char *path,
+		const MY_STAT *stat, bool rewrite);
 	int (*write)(ds_file_t *file, const unsigned char *buf, size_t len);
+	int (*seek_set)(ds_file_t *file, my_off_t offset);
 	int (*close)(ds_file_t *file);
 	int (*remove)(const char *path);
+	// TODO: consider to return bool from "rename" and "remove"
+	int (*rename)(ds_ctxt_t *ctxt, const char *old_path, const char *new_path);
+	int (*mremove)(ds_ctxt_t *ctxt, const char *path);
 	void (*deinit)(ds_ctxt_t *ctxt);
 };
 
@@ -63,7 +68,6 @@ static inline int dummy_remove(const char *) {
 typedef enum {
 	DS_TYPE_STDOUT,
 	DS_TYPE_LOCAL,
-	DS_TYPE_ARCHIVE,
 	DS_TYPE_XBSTREAM,
 	DS_TYPE_COMPRESS,
 	DS_TYPE_ENCRYPT,
@@ -78,12 +82,17 @@ ds_ctxt_t *ds_create(const char *root, ds_type_t type);
 
 /************************************************************************
 Open a datasink file */
-ds_file_t *ds_open(ds_ctxt_t *ctxt, const char *path, MY_STAT *stat);
+ds_file_t *ds_open(
+	ds_ctxt_t *ctxt, const char *path, const MY_STAT *stat, bool rewrite = false);
 
 /************************************************************************
 Write to a datasink file.
 @return 0 on success, 1 on error. */
 int ds_write(ds_file_t *file, const void *buf, size_t len);
+int ds_seek_set(ds_file_t *file, my_off_t offset);
+
+int ds_rename(ds_ctxt_t *ctxt, const char *old_path, const char *new_path);
+int ds_remove(ds_ctxt_t *ctxt, const char *path);
 
 /************************************************************************
 Close a datasink file.

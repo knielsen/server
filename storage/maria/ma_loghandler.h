@@ -534,5 +534,10 @@ typedef enum
 } enum_maria_sync_log_dir;
 extern ulong sync_log_dir;
 
+#define LOG_MAGIC_SIZE 12
+#define LOG_HEADER_DATA_SIZE (LOG_MAGIC_SIZE + \
+                              8 + 4 + 4 + 4 + 2 + 3 + \
+                              LSN_STORE_SIZE)
+
 C_MODE_END
 #endif
