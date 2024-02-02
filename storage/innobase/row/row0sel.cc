@@ -4786,6 +4786,7 @@ wait_table_again:
 			goto page_read_error;
 		}
 	}
+	DBUG_EXECUTE_IF("simulate_mvcc_space_error", {err = DB_MISSING_HISTORY; goto lock_table_wait;} );
 
 rec_loop:
 	DEBUG_SYNC_C("row_search_rec_loop");

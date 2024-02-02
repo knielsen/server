@@ -785,6 +785,11 @@ handle_new_error:
 			" table. Please drop excessive"
 			" foreign constraints and try again";
 		goto rollback_to_savept;
+	case DB_MISSING_HISTORY:
+		ib::error() << "Required history data has been"
+			" deleted due to lack of space in"
+			" rollback segment: consider increasing undo log space.";
+		goto rollback_to_savept;
 	default:
 		ib::fatal() << "Unknown error " << err;
 	}
