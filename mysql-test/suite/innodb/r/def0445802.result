@@ -1,0 +1,15 @@
+CONNECT  conn, localhost, root,,;
+CREATE TABLE mvcc_right (col1 int PRIMARY KEY, col2 varchar(80) NOT NULL) ENGINE=InnoDB;
+INSERT INTO mvcc_right VALUES (100, "This is a test of running out of undo log space");
+CREATE TABLE mvcc_left (col1 int PRIMARY KEY, col2 varchar(80) NOT NULL) ENGINE=InnoDB;
+INSERT INTO mvcc_left VALUES (100, "This is a test of running out of undo log space");
+COMMIT;
+connection default;
+SET SESSION debug_dbug='+d,simulate_mvcc_space_error';
+SELECT r.col2 from mvcc_right r INNER JOIN mvcc_left l ON r.col1 = l.col1 WHERE r.col1 > 0 AND l.col1 > 0;
+ERROR HY000: Table definition has changed, please retry transaction
+call mtr.add_suppression("Required history data has been deleted due to lack of space");
+SET SESSION debug_dbug='-d,simulate_mvcc_space_error';
+DROP TABLE mvcc_left;
+DROP TABLE mvcc_right;
+disconnect conn;

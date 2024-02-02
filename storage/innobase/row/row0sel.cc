@@ -4854,6 +4854,7 @@ page_corrupted:
 			goto page_read_error;
 		}
 	}
+	DBUG_EXECUTE_IF("simulate_mvcc_space_error", {err = DB_MISSING_HISTORY; goto lock_table_wait;} );
 
 	/* Check if the table is supposed to be empty for our read view.
 
