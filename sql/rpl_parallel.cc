@@ -672,6 +672,12 @@ convert_kill_to_deadlock_error(rpl_group_info *rgi)
   if (!thd->get_stmt_da()->is_error())
     return;
   err_code= thd->get_stmt_da()->sql_errno();
+  if (err_code == ER_LOCK_WAIT_TIMEOUT)
+    sql_print_warning("Slave: Lock wait timeout error in GTID %u-%u-%llu, "
+                      "will be retried. Possible conflicting manual query "
+                      "or unhandled transaction conflict",
+                      rgi->current_gtid.domain_id, rgi->current_gtid.server_id,
+                      rgi->current_gtid.seq_no);
   if ((rgi->speculation == rpl_group_info::SPECULATE_OPTIMISTIC &&
        err_code != ER_PRIOR_COMMIT_FAILED) ||
       ((err_code == ER_QUERY_INTERRUPTED || err_code == ER_CONNECTION_KILLED) &&
@@ -724,13 +730,17 @@ retry_event_group(rpl_group_info *rgi, rpl_parallel_thread *rpt,
   char log_name[FN_REFLEN];
   THD *thd= rgi->thd;
   rpl_parallel_entry *entry= rgi->parallel_entry;
-  ulong retries= 0;
   Format_description_log_event *description_event= NULL;
 
+  DBUG_ASSERT(rgi->trans_retries == 0);
 do_retry:
   event_count= 0;
   err= 0;
   errmsg= NULL;
+  if (rgi->trans_retries >= 1)
+    sql_print_warning("Slave: Retry number %lu required for GTID %u-%u-%llu",
+                      rgi->trans_retries + 1, rgi->current_gtid.domain_id,
+                      rgi->current_gtid.server_id, rgi->current_gtid.seq_no);
 
   /*
     If we already started committing before getting the deadlock (or other
@@ -938,7 +948,7 @@ do_retry:
       strmake_buf(log_name ,linfo.log_file_name);
 
       DBUG_EXECUTE_IF("inject_retry_event_group_open_binlog_kill", {
-          if (retries < 2)
+          if (rgi->trans_retries < 2)
           {
             /* Simulate that we get deadlock killed during open_binlog(). */
             thd->reset_for_next_command();
@@ -1003,7 +1013,8 @@ do_retry:
 
     delete_or_keep_event_post_apply(rgi, event_type, ev);
     DBUG_EXECUTE_IF("rpl_parallel_simulate_double_temp_err_gtid_0_x_100",
-                    if (retries == 0) err= dbug_simulate_tmp_error(rgi, thd););
+                    if (rgi->trans_retries == 0)
+                      err= dbug_simulate_tmp_error(rgi, thd););
     DBUG_EXECUTE_IF("rpl_parallel_simulate_infinite_temp_err_gtid_0_x_100",
                     err= dbug_simulate_tmp_error(rgi, thd););
     if (!err)
@@ -1013,8 +1024,8 @@ check_retry:
     convert_kill_to_deadlock_error(rgi);
     if (has_temporary_error(thd))
     {
-      ++retries;
-      if (retries < slave_trans_retries)
+      ++rgi->trans_retries;
+      if (rgi->trans_retries < slave_trans_retries)
       {
         if (fd >= 0)
         {

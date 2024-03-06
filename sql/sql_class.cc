@@ -5051,6 +5051,30 @@ thd_rpl_deadlock_check(MYSQL_THD thd, MYSQL_THD other_thd)
     cause replication to rollback (and later re-try) the other transaction,
     releasing the lock for this transaction so replication can proceed.
   */
+  if (other_rgi->trans_retries > 0)
+    sql_print_warning("Slave: Conflict detected between GTID %u-%u-%llu "
+                      "(retries: %lu) and %u-%u-%llu (retries: %lu). The "
+                      "latter will be rolled back and retried",
+                      rgi->current_gtid.domain_id,
+                      rgi->current_gtid.server_id,
+                      rgi->current_gtid.seq_no,
+                      rgi->trans_retries,
+                      other_rgi->current_gtid.domain_id,
+                      other_rgi->current_gtid.server_id,
+                      other_rgi->current_gtid.seq_no,
+                      other_rgi->trans_retries);
+  else
+    sql_print_information("Slave: Conflict detected between GTID %u-%u-%llu "
+                          "(retries: %lu) and %u-%u-%llu (retries: %lu). The "
+                          "latter will be rolled back and retried",
+                          rgi->current_gtid.domain_id,
+                          rgi->current_gtid.server_id,
+                          rgi->current_gtid.seq_no,
+                          rgi->trans_retries,
+                          other_rgi->current_gtid.domain_id,
+                          other_rgi->current_gtid.server_id,
+                          other_rgi->current_gtid.seq_no,
+                          other_rgi->trans_retries);
 #ifdef HAVE_REPLICATION
   slave_background_kill_request(other_thd);
 #endif

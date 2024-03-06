@@ -224,6 +224,8 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: Setting @slave_gtid_ignore_duplicates failed with error.*"),
  ("Slave I/O: Setting @slave_until_gtid failed with error.*"),
  ("Slave I/O: Get master GTID position failed with error.*"),
+ ("Slave: Lock wait timeout error in GTID.*"),
+ ("Slave: Retry number [0-9]+ required for GTID.*"),
 
  /*
    MDEV-12501 -- set --maturity-level by default
