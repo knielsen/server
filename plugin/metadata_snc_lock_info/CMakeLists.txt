@@ -1,0 +1,3 @@
+SET(METADATA_SNC_LOCK_INFO_SOURCES metadata_snc_lock_info.cc)
+MYSQL_ADD_PLUGIN(metadata_snc_lock_info ${METADATA_SNC_LOCK_INFO_SOURCES}
+                 RECOMPILE_FOR_EMBEDDED DEFAULT)

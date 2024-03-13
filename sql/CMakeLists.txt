@@ -187,7 +187,7 @@ SET (SQL_SOURCE
                opt_trace.cc
                table_cache.cc encryption.cc temporary_tables.cc
                json_table.cc
-               proxy_protocol.cc backup.cc xa.cc
+               proxy_protocol.cc backup.cc xa.cc snc_ull_hash.cc
                socketpair.c socketpair.h
                opt_vcol_substitution.h
                opt_vcol_substitution.cc

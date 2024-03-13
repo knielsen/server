@@ -727,6 +727,11 @@ The following specify which files/extra groups are read (specified before remain
  Unused. Deprecated, will be removed in a future release.
  --metadata-locks-hash-instances=# 
  Unused. Deprecated, will be removed in a future release.
+ --metadata-snc-lock-info[=name] 
+ Enable or disable METADATA_SNC_LOCK_INFO plugin. One of:
+ ON, OFF, FORCE (don't start if the plugin fails to load),
+ FORCE_PLUS_PERMANENT (like FORCE, but the plugin can not
+ be uninstalled).
  --mhnsw-default-distance=name 
  Distance function to build the vector index for. One of: 
  euclidean, cosine
@@ -1507,9 +1512,15 @@ The following specify which files/extra groups are read (specified before remain
  Alias for log_slow_query_file. Log slow queries to given
  log file. Defaults logging to 'hostname'-slow.log. Must
  be enabled to activate other slow log options
+ --snc-default-lock-expiration=# 
+ Default expiration time a session can hold a ServiceNow
+ lock for (seconds)
  --snc-do-not-binlog-empty-statement 
  Whether to binlog query events for statements that did
  not modify any row
+ --snc-lock-memory-target=# 
+ Target amount of memory for the ServiceNow lock memory
+ pool
  --snc-master-ddl-repl-subdomain-id=# 
  Replicate some DDL statements in out-of-order alternate
  domain which is running always behind the default domain.
@@ -1901,6 +1912,7 @@ max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
 metadata-locks-hash-instances 8
+metadata-snc-lock-info ON
 mhnsw-default-distance euclidean
 mhnsw-default-m 6
 mhnsw-ef-search 20
@@ -2096,7 +2108,9 @@ slave-transaction-retry-interval 0
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
+snc-default-lock-expiration 120
 snc-do-not-binlog-empty-statement FALSE
+snc-lock-memory-target 1073741824
 snc-master-ddl-repl-subdomain-id 0
 snc-replication-trx-slow-commit 31536000
 snc-slave-ddl-repl-subdomain-id 0

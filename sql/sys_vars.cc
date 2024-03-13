@@ -53,6 +53,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "sql_show.h"
 #include "opt_trace_context.h"
+#include "snc_ull_hash.h"
 #include "log_event.h"
 #include "optimizer_defaults.h"
 #include "vector_mhnsw.h"
@@ -3968,6 +3969,21 @@ static bool fix_rpl_semi_sync_slave_kill_conn_timeout(sys_var *self, THD *thd,
   return false;
 }
 
+static bool fix_snc_default_lock_expiration(sys_var *self, THD *thd,
+                                                      enum_var_type type)
+{
+  snc_ull_hash.set_default_lock_expiration(snc_default_lock_expiration);
+  return false;
+}
+
+static bool fix_snc_lock_memory_target(sys_var *self, THD *thd,
+                                                      enum_var_type type)
+{
+  snc_ull_hash.set_memory_target(snc_lock_memory_target);
+  return false;
+}
+
+
 static Sys_var_on_access_global<Sys_var_mybool,
                          PRIV_SET_SYSTEM_GLOBAL_VAR_RPL_SEMI_SYNC_SLAVE_ENABLED>
 Sys_semisync_slave_enabled(
@@ -4034,6 +4050,23 @@ static Sys_var_mybool Sys_snc_do_not_binlog_empty_statement(
        "row",
        GLOBAL_VAR(opt_snc_do_not_binlog_empty_statement), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_ulong Sys_snc_default_lock_expiration(
+       "snc_default_lock_expiration",
+       "Default expiration time a session can hold a ServiceNow lock for (seconds)",
+       GLOBAL_VAR(snc_default_lock_expiration), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(120), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_snc_default_lock_expiration));
+
+static Sys_var_ulonglong Sys_snc_lock_memory_target(
+       "snc_lock_memory_target",
+       "Target amount of memory for the ServiceNow lock memory pool",
+       GLOBAL_VAR(snc_lock_memory_target), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(4096, SIZE_T_MAX), DEFAULT(1024 * 1024 * 1024), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_snc_lock_memory_target));
+
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {

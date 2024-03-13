@@ -71,6 +71,33 @@ public:
   bool fix_fields(THD *thd, Item **ref) override;
 };
 
+class Item_func_snc_is_used_lock :public Item_str_func
+{
+  bool check_arguments() const override
+  { return args[0]->check_type_general_purpose_string(func_name_cstring()); }
+  String value;
+public:
+  Item_func_snc_is_used_lock(THD *thd, Item *a): Item_str_func(thd, a) {}
+  String* val_str(String* res) override;
+  LEX_CSTRING func_name_cstring() const override
+  {
+    static LEX_CSTRING name= {STRING_WITH_LEN("snc_is_used_lock") };
+    return name;
+  }
+
+  bool fix_length_and_dec(THD *thd) override
+  {
+    base_flags|= args[0]->base_flags & item_base_t::MAYBE_NULL;
+    return FALSE;
+  }
+
+  bool check_vcol_func_processor(void *arg) override
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *do_get_copy(THD *thd) const override
+  { return get_item_copy<Item_func_snc_is_used_lock>(thd, this); }
+};
 
 
 /*

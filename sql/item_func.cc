@@ -51,6 +51,7 @@
 #include "debug_sync.h"
 #include "sql_base.h"
 #include "sql_cte.h"
+#include "snc_ull_hash.h"
 #ifdef WITH_WSREP
 #include "mysql/service_wsrep.h"
 #endif /* WITH_WSREP */
@@ -4287,17 +4288,260 @@ static int ull_name_ok(String *name)
   return 1;
 }
 
+/**
+  Check if session or lock name is valid.
+  Need to support guids and base64-encoded strings
+*/
+int snc_ull_name_ok(String *name, const char* func_name)
+{
+  if (!ull_name_ok(name))
+    return 0;
+
+  const char* p = name->ptr();
+  const char* p_end = p + name->length();
+
+  for (;p < p_end;p++)
+  {
+    char c = *p;
+    if (!isalnum(c) && c != '_' && c != '-' && c != '+' && c != '/' && c != '=' && c != '{' && c != '}' && c != '.' && c != ':')
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name);
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
 
 /**
   Get a user level lock.
+  Tries to obtain lock_name for session_name, using a timeout of 
+  acquire_timeout seconds. The same session may obtain the same
+  lock multiple times, this increments lock counter.
 
-  @retval
-    1    : Got lock
-  @retval
-    0    : Timeout
-  @retval
+  @return
+    > 0  : Lock counter if the lock was obtained successfully
+    0    : If the attempt timed out (for example, because another session has previously locked the lock_name)
     NULL : Error
 */
+
+longlong Item_func_snc_get_lock::val_int()
+{
+  DBUG_ENTER("Item_func_snc_get_lock::val_int");
+  DBUG_ASSERT(fixed());
+  null_value= 1;
+
+  String *res= args[0]->val_str(&value);
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* session_name= res->ptr();
+  uint session_name_len= res->length();
+
+  res = args[1]->val_str(&tmp_value);
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* lock_name= res->ptr();
+  uint lock_name_len= res->length();
+
+  if (args[2]->null_value)
+  {
+     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "acquire_timeout", "NULL", func_name());
+     DBUG_RETURN(0);
+  }
+
+  res= args[2]->val_str(&tmp_value);
+  const char* acquire_timeout_str= res->ptr();
+  longlong acquire_timeout= args[2]->val_int();
+
+  if (acquire_timeout == 0 && strncmp(acquire_timeout_str, "0", res->length()) != 0)
+  {
+     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "acquire_timeout", acquire_timeout_str, func_name());
+     DBUG_RETURN(0);
+  }
+
+  if (acquire_timeout < 0)
+  {
+     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "acquire_timeout", acquire_timeout_str, func_name());
+     DBUG_RETURN(0);
+  }
+
+  longlong expiration_time= snc_ull_hash.get_default_lock_expiration();
+
+  if (arg_count == 4)
+  {
+     if (args[3]->null_value)
+     {
+        my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "expiration_time", "NULL", func_name());
+        DBUG_RETURN(0);
+     }
+
+     res= args[3]->val_str(&tmp_value);
+     const char* provided_expiration_time_str= res->ptr();
+     longlong provided_expiration_time = args[3]->val_int();
+
+     if (provided_expiration_time == 0 && strncmp(provided_expiration_time_str, "0", res->length()) != 0)
+     {
+        my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "expiration_time", provided_expiration_time_str, func_name());
+        DBUG_RETURN(0);
+     }
+
+     if (provided_expiration_time < 0)
+     {
+        my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "expiration_time", provided_expiration_time_str, func_name());
+        DBUG_RETURN(0);
+     }
+
+     expiration_time= provided_expiration_time; 
+  }
+
+  /*
+    In slave thread no need to get locks, everything is serialized. Anyway
+    there is no way to make GET_LOCK() work on slave like it did on master
+    (i.e. make it return exactly the same value) because we don't have the
+    same other concurrent threads environment. No matter what we return here,
+    it's not guaranteed to be same as on master.
+  */
+  THD *thd= current_thd;
+  if (thd->slave_thread)
+  {
+    null_value= 0;
+    DBUG_RETURN(1);
+  }
+
+  null_value= 0;
+
+  DBUG_RETURN(snc_ull_hash.get_lock(session_name, session_name_len, lock_name, lock_name_len, acquire_timeout,
+        (uint)expiration_time
+    ));
+}
+
+
+/**
+  Release a user level lock.
+  If the same lock was acquired several times (counter>1)
+  then a matching number of SNC_RELEASE_LOCK() calls is
+  needed to release the lock completely.
+  Alternatively, we can use final_release=1 to release the
+  lock regardless of its counter.
+
+  @return
+    - The current lock counter (0,1,...) if lock was released
+    - NULL if lock wasn't held (in which case the lock is not released) or no such session/lock
+*/
+
+longlong Item_func_snc_release_lock::val_int()
+{
+  DBUG_ASSERT(fixed());
+  String *res= args[0]->val_str(&value);
+  DBUG_ENTER("Item_func_snc_release_lock::val_int");
+  null_value= 1;
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* session_name = res->ptr();
+  uint session_name_len = res->length();
+  res = args[1]->val_str(&tmp_value);
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* lock_name = res->ptr();
+  uint lock_name_len = res->length();
+
+  bool final_release= false;
+  if (arg_count == 3)
+  {
+    if (args[2]->null_value)
+    {
+      my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "final_release", "NULL", func_name());
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      res= args[2]->val_str(&tmp_value);
+      const char* final_release_str= res->ptr();
+      longlong provided_final_release= args[2]->val_int();
+
+      if (provided_final_release == 0 && strncmp(final_release_str, "0", res->length()) != 0)
+      {
+        my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "final_release", final_release_str, func_name());
+        DBUG_RETURN(0);
+      }
+
+      if (provided_final_release != 0 && provided_final_release != 1)
+      {
+        my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "final_release", final_release_str, func_name());
+        DBUG_RETURN(0);
+      }
+
+      final_release = provided_final_release == 1;
+    }
+  }
+
+  int count = snc_ull_hash.release_lock(session_name, session_name_len, lock_name, lock_name_len, final_release);
+  null_value = count == -1 ? 1 : 0;
+
+  DBUG_RETURN(count);
+}
+
+/**
+  Checks whether the lock_name is free to use (that is, not locked). 
+
+  @return
+    - 1 if the lock is free (no one is holding the lock or lock has expired)
+    - 0 if the lock is in use
+    - NULL if an error occurs
+*/
+
+longlong Item_func_snc_is_free_lock::val_int()
+{
+  DBUG_ENTER("Item_func_snc_is_free_lock::val_int");
+  String *res= args[0]->val_str(&value);
+  null_value= 1;
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* lock_name = res->ptr();
+  uint lock_name_len = res->length();
+  null_value = 0;
+
+  DBUG_RETURN(snc_ull_hash.is_free_lock(lock_name, lock_name_len));
+}
+
+/**
+  Releases all locks held by session_name. 
+
+  @return
+    - The number of locks released
+    - NULL if session not found or doesn't have any active locks
+*/
+
+longlong Item_func_snc_release_all_locks::val_int()
+{
+  DBUG_ENTER("Item_func_snc_release_all_locks::val_str");
+  String *res= args[0]->val_str(&value);
+  null_value= 1;
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* session_name= res->ptr();
+  uint session_name_len= res->length();
+
+  int count= snc_ull_hash.release_all_locks(session_name, session_name_len);
+  if (count == -1)
+    DBUG_RETURN(0);
+
+  null_value= 0;
+
+  DBUG_RETURN(count);
+}
 
 longlong Item_func_get_lock::val_int()
 {

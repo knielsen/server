@@ -3315,7 +3315,7 @@ class Item_func_release_lock final :public Item_func_lock
 {
   bool check_arguments() const override
   { return args[0]->check_type_general_purpose_string(func_name_cstring()); }
-  String value;
+  String value, tmp_value;
 public:
   Item_func_release_lock(THD *thd, Item *a): Item_func_lock(thd, a) {}
   longlong val_int() override final;
@@ -3332,6 +3332,123 @@ public:
   }
   Item *do_get_copy(THD *thd) const override final
   { return get_item_copy<Item_func_release_lock>(thd, this); }
+};
+
+class Item_func_snc_get_lock :public Item_long_func
+{
+  bool check_arguments() const override
+  {
+    return args[0]->check_type_general_purpose_string(func_name_cstring()) ||
+           args[1]->check_type_general_purpose_string(func_name_cstring()) ||
+           args[2]->check_type_can_return_int(func_name_cstring()) ||
+           (arg_count > 3 && args[3]->check_type_can_return_int(func_name_cstring()));
+  }
+  String value, tmp_value;
+ public:
+  Item_func_snc_get_lock(THD *thd, List<Item> &list) :Item_long_func(thd, list) {}
+  longlong val_int() override;
+  LEX_CSTRING func_name_cstring() const override
+  {
+    static LEX_CSTRING name= {STRING_WITH_LEN("snc_get_lock") };
+    return name;
+  }
+  bool fix_length_and_dec(THD *thd) override
+  { max_length=1; set_maybe_null(); return FALSE; }
+  table_map used_tables() const override
+  {
+    return used_tables_cache | RAND_TABLE_BIT;
+  }
+  bool const_item() const override { return 0; }
+  bool is_expensive() override { return 1; }
+  bool check_vcol_func_processor(void *arg) override
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *do_get_copy(THD *thd) const override
+  { return get_item_copy<Item_func_snc_get_lock>(thd, this); }
+};
+
+class Item_func_snc_is_free_lock :public Item_long_func
+{
+  bool check_arguments() const override
+  { return args[0]->check_type_general_purpose_string(func_name_cstring()); }
+  String value;
+public:
+  Item_func_snc_is_free_lock(THD *thd, Item *a): Item_long_func(thd, a) {}
+  longlong val_int() override;
+  LEX_CSTRING func_name_cstring() const override
+  {
+    static LEX_CSTRING name= {STRING_WITH_LEN("snc_is_free_lock") };
+    return name;
+  }
+  bool fix_length_and_dec(THD *thd) override
+  {
+    decimals=0; max_length=1; set_maybe_null(); return FALSE;
+  }
+  bool check_vcol_func_processor(void *arg) override
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *do_get_copy(THD *thd) const override
+  { return get_item_copy<Item_func_snc_is_free_lock>(thd, this); }
+};
+
+class Item_func_snc_release_lock :public Item_long_func
+{
+  bool check_arguments() const override
+  {
+    return args[0]->check_type_general_purpose_string(func_name_cstring()) ||
+           args[1]->check_type_general_purpose_string(func_name_cstring()) ||
+           (arg_count > 2 && args[2]->check_type_can_return_int(func_name_cstring()));
+  }
+  String value, tmp_value;
+public:
+  Item_func_snc_release_lock(THD *thd, List<Item> &list) :Item_long_func(thd, list) {}
+  longlong val_int() override;
+  LEX_CSTRING func_name_cstring() const override
+  {
+    static LEX_CSTRING name= {STRING_WITH_LEN("snc_release_lock") };
+    return name;
+  }
+  bool fix_length_and_dec(THD *thd) override
+  {
+    decimals=0; max_length=1; set_maybe_null();
+    return FALSE;
+  }
+  bool check_vcol_func_processor(void *arg) override
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *do_get_copy(THD *thd) const override
+  { return get_item_copy<Item_func_snc_release_lock>(thd, this); }
+};
+
+class Item_func_snc_release_all_locks :public Item_long_func
+{
+  bool check_arguments() const override
+  { return args[0]->check_type_general_purpose_string(func_name_cstring()); }
+  String value, tmp_value;
+public:
+  Item_func_snc_release_all_locks(THD *thd, Item *a): Item_long_func(thd, a) {}
+  longlong val_int() override;
+  LEX_CSTRING func_name_cstring() const override {
+    static LEX_CSTRING name= {STRING_WITH_LEN("snc_release_all_locks") };
+    return name;
+  }
+  bool fix_length_and_dec(THD *thd) override
+  { max_length= 1; set_maybe_null(); return FALSE; }
+  table_map used_tables() const override
+  {
+    return used_tables_cache | RAND_TABLE_BIT;
+  }
+  bool const_item() const override { return 0; }
+  bool is_expensive() override { return 1; }
+  bool check_vcol_func_processor(void *arg) override
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *do_get_copy(THD *thd) const override
+  { return get_item_copy<Item_func_snc_release_all_locks>(thd, this); }
 };
 
 
