@@ -1,0 +1,7 @@
+--source include/not_debug.inc
+--source suite/srvnow/misc/include/setup_connections.inc
+--source suite/srvnow/misc/include/snc_lock.inc
+--eval set global snc_default_lock_expiration = $save_duration;
+--eval set global snc_lock_memory_target = $save_memory_target;
+
+

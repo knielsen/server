@@ -33,6 +33,7 @@
 #include "mdl.h"
 #include "ha_handler_stats.h"
 #include "optimizer_costs.h"
+#include "snc_ull_hash.h"
 
 #include "sql_analyze_stmt.h" // for Exec_time_tracker 
 

@@ -966,6 +966,56 @@ protected:
   ~Create_func_get_lock() override = default;
 };
 
+class Create_func_snc_get_lock : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, const LEX_CSTRING *name,
+                              List<Item> *item_list) override;
+
+  static Create_func_snc_get_lock s_singleton;
+
+protected:
+  Create_func_snc_get_lock() {}
+  virtual ~Create_func_snc_get_lock() {}
+};
+
+class Create_func_snc_is_free_lock : public Create_func_arg1
+{
+public:
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
+
+  static Create_func_snc_is_free_lock s_singleton;
+
+protected:
+  Create_func_snc_is_free_lock() {}
+  virtual ~Create_func_snc_is_free_lock() {}
+};
+
+class Create_func_snc_is_used_lock : public Create_func_arg1
+{
+public:
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
+
+  static Create_func_snc_is_used_lock s_singleton;
+
+protected:
+  Create_func_snc_is_used_lock() {}
+  virtual ~Create_func_snc_is_used_lock() {}
+};
+
+class Create_func_snc_release_all_locks : public Create_func_arg1
+{
+public:
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
+
+  static Create_func_snc_release_all_locks s_singleton;
+
+protected:
+  Create_func_snc_release_all_locks() {}
+  virtual ~Create_func_snc_release_all_locks() {}
+};
+
+
 
 class Create_func_greatest : public Create_native_func
 {
@@ -2179,6 +2229,19 @@ public:
 protected:
   Create_func_release_lock() = default;
   ~Create_func_release_lock() override = default;
+};
+
+class Create_func_snc_release_lock : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, const LEX_CSTRING *name,
+                              List<Item> *item_list) override;
+
+  static Create_func_snc_release_lock s_singleton;
+
+protected:
+  Create_func_snc_release_lock() {}
+  virtual ~Create_func_snc_release_lock() {}
 };
 
 
@@ -4135,6 +4198,55 @@ Create_func_get_lock::create_2_arg(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_get_lock(thd, arg1, arg2);
 }
 
+Create_func_snc_get_lock Create_func_snc_get_lock::s_singleton;
+
+Item*
+Create_func_snc_get_lock::create_native(THD *thd, const LEX_CSTRING *name,
+                                  List<Item> *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements;
+
+  if (unlikely(arg_count < 3 || arg_count > 4))
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name->str);
+    return NULL;
+  }
+
+  return new (thd->mem_root) Item_func_snc_get_lock(thd, *item_list);
+}
+
+Create_func_snc_release_all_locks Create_func_snc_release_all_locks::s_singleton;
+
+Item*
+Create_func_snc_release_all_locks::create_1_arg(THD *thd, Item *arg1)
+{
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return new (thd->mem_root) Item_func_snc_release_all_locks(thd, arg1);
+}
+
+Create_func_snc_is_used_lock Create_func_snc_is_used_lock::s_singleton;
+
+Item*
+Create_func_snc_is_used_lock::create_1_arg(THD *thd, Item *arg1)
+{
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return new (thd->mem_root) Item_func_snc_is_used_lock(thd, arg1);
+}
+
+Create_func_snc_is_free_lock Create_func_snc_is_free_lock::s_singleton;
+
+Item*
+Create_func_snc_is_free_lock::create_1_arg(THD *thd, Item *arg1)
+{
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return new (thd->mem_root) Item_func_snc_is_free_lock(thd, arg1);
+}
 
 Create_func_greatest Create_func_greatest::s_singleton;
 
@@ -5561,6 +5673,28 @@ Create_func_release_lock::create_1_arg(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_release_lock(thd, arg1);
 }
 
+Create_func_snc_release_lock Create_func_snc_release_lock::s_singleton;
+
+Item*
+Create_func_snc_release_lock::create_native(THD *thd, const LEX_CSTRING *name,
+                                  List<Item> *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements;
+
+  if (unlikely(arg_count < 2 || arg_count > 3))
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name->str);
+    return NULL;
+  }
+
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return new (thd->mem_root) Item_func_snc_release_lock(thd, *item_list);
+}
+
 
 Create_func_replace_oracle Create_func_replace_oracle::s_singleton;
 
@@ -6541,6 +6675,11 @@ const Native_func_registry func_array[] =
   { { STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
   { { STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
+  { { STRING_WITH_LEN("SNC_GET_LOCK") }, BUILDER(Create_func_snc_get_lock)},
+  { { STRING_WITH_LEN("SNC_IS_FREE_LOCK") }, BUILDER(Create_func_snc_is_free_lock)},
+  { { STRING_WITH_LEN("SNC_IS_USED_LOCK") }, BUILDER(Create_func_snc_is_used_lock)},
+  { { STRING_WITH_LEN("SNC_RELEASE_LOCK") }, BUILDER(Create_func_snc_release_lock)},
+  { { STRING_WITH_LEN("SNC_RELEASE_ALL_LOCKS") }, BUILDER(Create_func_snc_release_all_locks)},
   { { STRING_WITH_LEN("STRCMP") }, BUILDER(Create_func_strcmp)},
   { { STRING_WITH_LEN("STR_TO_DATE") }, BUILDER(Create_func_str_to_date)},
   { { STRING_WITH_LEN("SUBSTR_ORACLE") },

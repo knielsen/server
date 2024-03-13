@@ -1,0 +1,21 @@
+SELECT * FROM information_schema.metadata_snc_lock_info ORDER BY session_name;
+SESSION_NAME	LOCK_NAME	COUNTER	SECONDS_ELAPSED	SECONDS_TO_EXPIRE
+DO SNC_GET_LOCK('session1', 'lock1', 10);
+DO SNC_GET_LOCK('session1', 'lock1', 10);
+DO SNC_GET_LOCK('session1', 'lock1', 10);
+DO SNC_GET_LOCK('session2', 'abcd', 10, 5);
+DO SNC_GET_LOCK('session3', '12345', 10, 99999);
+DO SNC_GET_LOCK('session3', 'expired', 10, 0);
+SELECT session_name, lock_name, counter FROM information_schema.metadata_snc_lock_info ORDER BY session_name;
+session_name	lock_name	counter
+session1	lock1	3
+session2	abcd	1
+session3	12345	1
+DO SNC_RELEASE_ALL_LOCKS('session1');
+DO SNC_RELEASE_ALL_LOCKS('session2');
+SELECT session_name, lock_name, counter FROM information_schema.metadata_snc_lock_info ORDER BY session_name;
+session_name	lock_name	counter
+session3	12345	1
+DO SNC_RELEASE_ALL_LOCKS('session3');
+SELECT * FROM information_schema.metadata_snc_lock_info ORDER BY session_name;
+SESSION_NAME	LOCK_NAME	COUNTER	SECONDS_ELAPSED	SECONDS_TO_EXPIRE

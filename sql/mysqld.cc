@@ -54,6 +54,7 @@
 #include "sys_vars_shared.h"
 #include "ddl_log.h"
 #include "optimizer_defaults.h"
+#include "snc_ull_hash.h"
 
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -480,6 +481,8 @@ uint32 snc_master_ddl_repl_subdomain_id;
 uint32 snc_slave_ddl_repl_subdomain_id;
 uint32 snc_slave_max_synchronized_domain_id;
 my_bool opt_snc_do_not_binlog_empty_statement= FALSE;
+ulong snc_default_lock_expiration;
+ulonglong snc_lock_memory_target;
 ulong open_files_limit, max_binlog_size;
 ulong slave_trans_retries;
 ulong slave_trans_retry_interval;
@@ -2077,6 +2080,8 @@ static void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
+  snc_ull_hash.end(); // have to do it here rather than use the destructor
+                      // otherwise we get unfreed memory warnings.
 #ifdef HAVE_REPLICATION
   // We must call end_slave() as clean_up may have been called during startup
   end_slave();
@@ -5063,6 +5068,8 @@ static int init_server_components()
   */
   my_cpu_init();
   mdl_init();
+  snc_ull_hash.init();
+
   if (tdc_init() || hostname_cache_init())
     unireg_abort(1);
 
@@ -7390,6 +7397,22 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, void *buff,
   return 0;
 }
 
+
+static int show_snc_old_pool(THD *thd, SHOW_VAR *var, char *buff,
+                             enum enum_var_type scope)
+{
+  snc_ull_hash.show_pool(var, buff, true);
+  return 0;
+}
+
+static int show_snc_new_pool(THD *thd, SHOW_VAR *var, char *buff,
+                             enum enum_var_type scope)
+{
+  snc_ull_hash.show_pool(var, buff, false);
+  return 0;
+}
+
+
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, void *buff,
                                system_status_var *, enum_var_type)
 {
@@ -7900,6 +7923,8 @@ SHOW_VAR status_vars[]= {
   {"Sort_range",	       (char*) offsetof(STATUS_VAR, filesort_range_count_), SHOW_LONG_STATUS},
   {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows_), SHOW_LONG_STATUS},
   {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count_), SHOW_LONG_STATUS},
+  {"Snc_user_lock_pool_new_bytes", (char*)&show_snc_new_pool, SHOW_SIMPLE_FUNC},
+  {"Snc_user_lock_pool_old_bytes", (char*)&show_snc_old_pool, SHOW_SIMPLE_FUNC},
 #ifdef HAVE_OPENSSL
 #ifndef EMBEDDED_LIBRARY
   {"Ssl_accept_renegotiates",  (char*) &ssl_acceptor_stats.zero, SHOW_LONG},
