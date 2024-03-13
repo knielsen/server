@@ -1,0 +1,439 @@
+connect  con1,localhost,root,,;
+connect  con2,localhost,root,,;
+connect  con3,localhost,root,,;
+connection con1;
+select snc_get_lock("abcd1234_-+/={}.:", "abcd1234_-+/={}.:", 10) as valid;
+valid
+1
+do snc_release_lock("abcd1234_-+/={}.:", "abcd1234_-+/={}.:");
+select snc_get_lock("session'1", "lock1", 10) as error;
+ERROR HY000: Incorrect arguments to snc_get_lock
+select snc_get_lock("session1", "lock'1", 10) as error;
+ERROR HY000: Incorrect arguments to snc_get_lock
+select snc_get_lock("lock1", 10) as error;
+ERROR 42000: Incorrect parameter count in the call to native function 'snc_get_lock'
+select snc_get_lock("", "lock1", 10) as error;
+error
+NULL
+select snc_get_lock(NULL, "lock1", 10) as error;
+error
+NULL
+select snc_get_lock("session1", "", 10) as error;
+error
+NULL
+select snc_get_lock("session1", NULL, 10) as error;
+error
+NULL
+select snc_get_lock("session1", "lock1", -1) as error;
+ERROR HY000: Incorrect acquire_timeout value: '-1' for function snc_get_lock
+select snc_get_lock("session1", "lock1", 10, -1) as error;
+ERROR HY000: Incorrect expiration_time value: '-1' for function snc_get_lock
+select snc_get_lock("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012", "l", 10, 0) as len192;
+len192
+1
+select snc_get_lock("session1", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012", 10, 0) as len192;
+len192
+1
+select snc_get_lock("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123", "l", 10, 0) as len193;
+ERROR 42000: Identifier name '1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567...' is too long
+select snc_get_lock("session1", "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123", 10, 0) as len193;
+ERROR 42000: Identifier name '1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567...' is too long
+select snc_is_free_lock("lock'1") as error;
+ERROR HY000: Incorrect arguments to snc_is_free_lock
+select snc_is_free_lock("") as error;
+error
+NULL
+select snc_is_free_lock(NULL) as error;
+error
+NULL
+select snc_is_used_lock("lock'1") as error;
+ERROR HY000: Incorrect arguments to snc_is_used_lock
+select snc_is_used_lock("") as error;
+error
+NULL
+select snc_is_used_lock(NULL) as error;
+error
+NULL
+select snc_release_lock("session'1", "lock1") as error;
+ERROR HY000: Incorrect arguments to snc_release_lock
+select snc_release_lock("session1", "lock'1") as error;
+ERROR HY000: Incorrect arguments to snc_release_lock
+select snc_release_lock("", "lock1") as error;
+error
+NULL
+select snc_release_lock(NULL, "lock1") as error;
+error
+NULL
+select snc_release_lock("session1", "") as error;
+error
+NULL
+select snc_release_lock("session1", NULL) as error;
+error
+NULL
+select snc_release_lock("session1", "lock1", NULL) as error;
+ERROR HY000: Incorrect final_release value: 'NULL' for function snc_release_lock
+select snc_release_all_locks("session'1") as error;
+ERROR HY000: Incorrect arguments to snc_release_all_locks
+select snc_release_all_locks("") as error;
+error
+NULL
+select snc_release_all_locks(NULL) as error;
+error
+NULL
+select snc_get_lock("session1", "lock1", "foo");
+ERROR HY000: Incorrect acquire_timeout value: 'foo' for function snc_get_lock
+select snc_get_lock("session1", "lock1", 10, "foo");
+ERROR HY000: Incorrect expiration_time value: 'foo' for function snc_get_lock
+select snc_release_lock("session1", "lock1", "all");
+ERROR HY000: Incorrect final_release value: 'all' for function snc_release_lock
+select snc_is_free_lock("lock1") as yes;
+yes
+1
+select snc_get_lock("session1", "lock1", 10) as counter;
+counter
+1
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"1", "seconds_elapsed":"0", "seconds_to_expire":"120"}
+select snc_is_free_lock("lock1") as no;
+no
+0
+select snc_get_lock("session1", "lock1", 10) as counter;
+counter
+2
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"120"}
+select snc_is_free_lock("lock1") as no;
+no
+0
+select snc_release_lock("session1", "lock1") as counter;
+counter
+1
+select snc_release_lock("session1", "lock1") as counter;
+counter
+0
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+NULL
+select snc_is_free_lock("lock1") as yes;
+yes
+1
+select snc_release_all_locks("foo") as error;
+error
+NULL
+select snc_get_lock("foo", "bar", 1) as yes;
+yes
+1
+select snc_get_lock("foo", "baz", 1) as yes;
+yes
+1
+select snc_release_all_locks("foo") as two;
+two
+2
+select snc_get_lock("session1", "lock1", 0, 0) as yes;
+yes
+1
+select snc_is_free_lock("lock1") as yes;
+yes
+1
+select snc_get_lock("session1", "lock1", 10) as counter;
+counter
+1
+select snc_get_lock("session1", "lock1", 10) as counter;
+counter
+2
+select snc_get_lock("session1", "lock1", 10) as counter;
+counter
+3
+select snc_release_lock("session1", "lock1", 1) as counter;
+counter
+0
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+NULL
+select snc_is_free_lock("lock1") as yes;
+yes
+1
+select snc_get_lock("session1", "lock1", 10, 2) as counter;
+counter
+1
+do sleep(3);
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+NULL
+select snc_is_free_lock("lock1") as yes;
+yes
+1
+select snc_get_lock("session1", "lock1", 10, 60) as counter;
+counter
+1
+do sleep(5);
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"1", "seconds_elapsed":"5", "seconds_to_expire":"55"}
+select snc_get_lock("session1", "lock1", 10, 60) as counter;
+counter
+2
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"60"}
+select snc_release_lock("session1", "lock1") as counter;
+counter
+1
+select snc_release_lock("session1", "lock1") as counter;
+counter
+0
+do snc_get_lock("session1", "long1", 10);
+do snc_get_lock("session1", "short", 10, 1);
+do snc_get_lock("session1", "long2", 10);
+do sleep(1);
+select snc_release_all_locks("session1") as two;
+two
+2
+do snc_get_lock("session1", "short", 10, 1);
+do sleep(1);
+select snc_release_lock("session1", "short") as none;
+none
+NULL
+select snc_get_lock("session1", "lock1", 10, 60) as counter;
+counter
+1
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"1", "seconds_elapsed":"0", "seconds_to_expire":"60"}
+select snc_get_lock("session1", "lock1", 10, 30) as counter;
+counter
+2
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"30"}
+select snc_get_lock("session1", "lock1", 10, 1) as counter;
+counter
+3
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"3", "seconds_elapsed":"0", "seconds_to_expire":"1"}
+do sleep(2);
+select snc_is_used_lock("lock1");
+snc_is_used_lock("lock1")
+NULL
+connection con2;
+select snc_get_lock("session2", "lock1", 10) as counter;
+counter
+1
+connection con1;
+select snc_release_lock("session1", "lock1") as failure;
+failure
+NULL
+select snc_get_lock("session1", "lock1", 2) as counter;
+counter
+0
+select snc_get_lock("session1", "lock2", 2) as counter;
+counter
+1
+select snc_release_lock("session1", "lock2") as counter;
+counter
+0
+connection con2;
+select snc_release_lock("session2", "lock1") as counter;
+counter
+0
+connection con1;
+select snc_get_lock("session1", "lock1", 2) as counter;
+counter
+1
+select snc_release_lock("session1", "lock1") as counter;
+counter
+0
+set global snc_default_lock_expiration = 2;
+set global snc_lock_memory_target = (1<<20);
+select snc_is_used_lock("lock3");
+snc_is_used_lock("lock3")
+NULL
+select snc_get_lock("session1", "lock3", 2) as counter;
+counter
+1
+do sleep(@@snc_default_lock_expiration);
+connection con2;
+select snc_get_lock("session2", "lock3", 2) as counter;
+counter
+1
+select snc_release_lock("session2", "lock3") as counter;
+counter
+0
+select snc_get_lock("session1", "lock_to_expire", 2, 5) as counter;
+counter
+1
+select snc_get_lock("session2", "lock_to_expire", 3) as counter;
+counter
+0
+select snc_get_lock("session2", "lock_to_expire", 3) as counter;
+counter
+1
+select snc_release_lock("session2", "lock_to_expire") as counter;
+counter
+0
+connection con1;
+select 1;
+1
+1
+select snc_get_lock("session1", "lock10", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock10", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock9", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock9", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock8", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock8", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock7", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock7", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock6", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock6", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock5", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock5", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock4", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock4", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock3", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock3", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock2", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock2", 10) as counter;;
+counter
+2
+select snc_get_lock("session1", "lock1", 10) as counter;;
+counter
+1
+select snc_get_lock("session1", "lock1", 10) as counter;;
+counter
+2
+select snc_is_used_lock("lock10");;
+snc_is_used_lock("lock10")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock9");;
+snc_is_used_lock("lock9")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock8");;
+snc_is_used_lock("lock8")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock7");;
+snc_is_used_lock("lock7")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock6");;
+snc_is_used_lock("lock6")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock5");;
+snc_is_used_lock("lock5")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock4");;
+snc_is_used_lock("lock4")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock3");;
+snc_is_used_lock("lock3")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock2");;
+snc_is_used_lock("lock2")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_is_used_lock("lock1");;
+snc_is_used_lock("lock1")
+{"session":"session1", "count":"2", "seconds_elapsed":"0", "seconds_to_expire":"2"}
+select snc_release_all_locks("session1");
+snc_release_all_locks("session1")
+10
+select snc_is_used_lock("lock10");;
+snc_is_used_lock("lock10")
+NULL
+select snc_is_used_lock("lock9");;
+snc_is_used_lock("lock9")
+NULL
+select snc_is_used_lock("lock8");;
+snc_is_used_lock("lock8")
+NULL
+select snc_is_used_lock("lock7");;
+snc_is_used_lock("lock7")
+NULL
+select snc_is_used_lock("lock6");;
+snc_is_used_lock("lock6")
+NULL
+select snc_is_used_lock("lock5");;
+snc_is_used_lock("lock5")
+NULL
+select snc_is_used_lock("lock4");;
+snc_is_used_lock("lock4")
+NULL
+select snc_is_used_lock("lock3");;
+snc_is_used_lock("lock3")
+NULL
+select snc_is_used_lock("lock2");;
+snc_is_used_lock("lock2")
+NULL
+select snc_is_used_lock("lock1");;
+snc_is_used_lock("lock1")
+NULL
+select snc_is_used_lock("lock10");;
+snc_is_used_lock("lock10")
+NULL
+select snc_is_used_lock("lock9");;
+snc_is_used_lock("lock9")
+NULL
+select snc_is_used_lock("lock8");;
+snc_is_used_lock("lock8")
+NULL
+select snc_is_used_lock("lock7");;
+snc_is_used_lock("lock7")
+NULL
+select snc_is_used_lock("lock6");;
+snc_is_used_lock("lock6")
+NULL
+select snc_is_used_lock("lock5");;
+snc_is_used_lock("lock5")
+NULL
+select snc_is_used_lock("lock4");;
+snc_is_used_lock("lock4")
+NULL
+select snc_is_used_lock("lock3");;
+snc_is_used_lock("lock3")
+NULL
+select snc_is_used_lock("lock2");;
+snc_is_used_lock("lock2")
+NULL
+select snc_is_used_lock("lock1");;
+snc_is_used_lock("lock1")
+NULL
+show global status like "snc_%";
+Variable_name	Value
+Snc_user_lock_pool_new_bytes	687288
+Snc_user_lock_pool_old_bytes	2160048
+set global snc_default_lock_expiration = 120;;
+set global snc_lock_memory_target = 1073741824;;

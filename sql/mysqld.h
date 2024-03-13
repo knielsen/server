@@ -232,6 +232,8 @@ extern ulonglong query_cache_size;
 extern ulong query_cache_limit;
 extern ulong query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
+extern ulong snc_default_lock_expiration;
+extern ulonglong snc_lock_memory_target;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern uint max_digest_length;
 extern ulong max_connect_errors, connect_timeout;

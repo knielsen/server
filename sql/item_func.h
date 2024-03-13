@@ -2671,7 +2671,7 @@ class Item_func_release_lock :public Item_long_func
 {
   bool check_arguments() const
   { return args[0]->check_type_general_purpose_string(func_name()); }
-  String value;
+  String value, tmp_value;
 public:
   Item_func_release_lock(THD *thd, Item *a): Item_long_func(thd, a) {}
   longlong val_int();
@@ -2690,6 +2690,107 @@ public:
   Item *get_copy(THD *thd)
   { return get_item_copy<Item_func_release_lock>(thd, this); }
 };
+
+class Item_func_snc_get_lock :public Item_long_func
+{
+  bool check_arguments() const
+  {
+    return args[0]->check_type_general_purpose_string(func_name()) ||
+           args[1]->check_type_general_purpose_string(func_name()) ||
+           args[2]->check_type_can_return_int(func_name()) ||
+           (arg_count > 3 && args[3]->check_type_can_return_int(func_name()));
+  }
+  String value, tmp_value;
+ public:
+  Item_func_snc_get_lock(THD *thd, List<Item> &list) :Item_long_func(thd, list) {}
+  longlong val_int();
+  const char *func_name() const { return "snc_get_lock"; }
+  bool fix_length_and_dec() { max_length=1; maybe_null=1; return FALSE; }
+  table_map used_tables() const
+  {
+    return used_tables_cache | RAND_TABLE_BIT;
+  }
+  bool const_item() const { return 0; }
+  bool is_expensive() { return 1; }
+  bool check_vcol_func_processor(void *arg)
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_snc_get_lock>(thd, this); }
+};
+
+class Item_func_snc_is_free_lock :public Item_long_func
+{
+  bool check_arguments() const
+  { return args[0]->check_type_general_purpose_string(func_name()); }
+  String value;
+public:
+  Item_func_snc_is_free_lock(THD *thd, Item *a): Item_long_func(thd, a) {}
+  longlong val_int();
+  const char *func_name() const { return "snc_is_free_lock"; }
+  bool fix_length_and_dec()
+  {
+    decimals=0; max_length=1; maybe_null=1; return FALSE;
+  }
+  bool check_vcol_func_processor(void *arg)
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_snc_is_free_lock>(thd, this); }
+};
+
+class Item_func_snc_release_lock :public Item_long_func
+{
+  bool check_arguments() const
+  {
+    return args[0]->check_type_general_purpose_string(func_name()) ||
+           args[1]->check_type_general_purpose_string(func_name()) ||
+           (arg_count > 2 && args[2]->check_type_can_return_int(func_name()));
+  }
+  String value, tmp_value;
+public:
+  Item_func_snc_release_lock(THD *thd, List<Item> &list) :Item_long_func(thd, list) {}
+  longlong val_int();
+  const char *func_name() const { return "snc_release_lock"; }
+  bool fix_length_and_dec()
+  {
+    decimals=0; max_length=1; maybe_null=1;
+    return FALSE;
+  }
+  bool check_vcol_func_processor(void *arg)
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_snc_release_lock>(thd, this); }
+};
+
+class Item_func_snc_release_all_locks :public Item_long_func
+{
+  bool check_arguments() const
+  { return args[0]->check_type_general_purpose_string(func_name()); }
+  String value, tmp_value;
+public:
+  Item_func_snc_release_all_locks(THD *thd, Item *a): Item_long_func(thd, a) {}
+  longlong val_int();
+  const char *func_name() const { return "snc_release_all_locks"; }
+  bool fix_length_and_dec() { max_length= 1; maybe_null= 1; return FALSE; }
+  table_map used_tables() const
+  {
+    return used_tables_cache | RAND_TABLE_BIT;
+  }
+  bool const_item() const { return 0; }
+  bool is_expensive() { return 1; }
+  bool check_vcol_func_processor(void *arg)
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_snc_release_all_locks>(thd, this); }
+};
+
 
 /* replication functions */
 

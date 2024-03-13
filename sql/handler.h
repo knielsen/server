@@ -34,6 +34,7 @@
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 #include "sql_array.h"          /* Dynamic_array<> */
 #include "mdl.h"
+#include "snc_ull_hash.h"
 #include "vers_string.h"
 
 #include "sql_analyze_stmt.h" // for Exec_time_tracker 

@@ -55,9 +55,11 @@ C_MODE_END
 #include "sql_show.h"                           // append_identifier
 #include <sql_repl.h>
 #include "sql_statistics.h"
+#include "snc_ull_hash.h"
 
 size_t username_char_length= 80;
 
+int snc_ull_name_ok(String *name, const char* func_name);
 
 class Repeat_count
 {
@@ -160,6 +162,34 @@ longlong Item_str_func::val_int()
   return res ? longlong_from_string_with_check(res) : 0;
 }
 
+/**
+  Checks whether the lock_name is in use (that is, locked). 
+
+  @return
+    - The session name, count (if the same lock was obtained multiple times), and time to expire in seconds
+      Sample output: {"session":"session2", "count":"1", "seconds_to_expire":"120"}
+    - NULL if lock is not in use/did not exist
+*/
+
+String* Item_func_snc_is_used_lock::val_str(String* res)
+{
+  DBUG_ENTER("Item_func_snc_is_used_lock::val_str");
+  res= args[0]->val_str(&value);
+  null_value= 1;
+
+  if (!snc_ull_name_ok(res, func_name()))
+    DBUG_RETURN(0);
+
+  const char* lock_name= res->ptr();
+  uint lock_name_len= res->length();
+
+  String* session= snc_ull_hash.is_used_lock(res, lock_name, lock_name_len);
+
+  if (session)
+    null_value= 0;
+
+  DBUG_RETURN(session);
+}
 
 String *Item_func_md5::val_str_ascii(String *str)
 {

@@ -3752,10 +3752,30 @@ NUMERIC_BLOCK_SIZE	NULL
 ENUM_VALUE_LIST	NULL
 READ_ONLY	NO
 COMMAND_LINE_ARGUMENT	REQUIRED
+VARIABLE_NAME	SNC_DEFAULT_LOCK_EXPIRATION
+VARIABLE_SCOPE	GLOBAL
+VARIABLE_TYPE	BIGINT UNSIGNED
+VARIABLE_COMMENT	Default expiration time a session can hold a ServiceNow lock for (seconds)
+NUMERIC_MIN_VALUE	1
+NUMERIC_MAX_VALUE	31536000
+NUMERIC_BLOCK_SIZE	1
+ENUM_VALUE_LIST	NULL
+READ_ONLY	NO
+COMMAND_LINE_ARGUMENT	REQUIRED
+VARIABLE_NAME	SNC_LOCK_MEMORY_TARGET
+VARIABLE_SCOPE	GLOBAL
+VARIABLE_TYPE	BIGINT UNSIGNED
+VARIABLE_COMMENT	Target amount of memory for the ServiceNow lock memory pool.
+NUMERIC_MIN_VALUE	4096
+NUMERIC_MAX_VALUE	18446744073709551615
+NUMERIC_BLOCK_SIZE	1
+ENUM_VALUE_LIST	NULL
+READ_ONLY	NO
+COMMAND_LINE_ARGUMENT	REQUIRED
 VARIABLE_NAME	SN_ORDER_BY_LIMIT_OPTIMIZE_LEVEL
 VARIABLE_SCOPE	SESSION
 VARIABLE_TYPE	BIGINT UNSIGNED
-VARIABLE_COMMENT	Controls the level of optimization performed for select queries  that has a order by limit clause. Meaning: 0 - Do not reconsider access paths for index ordering. 1 - Consider access paths for index ordering in order by. but do not take key parts into account when selecting the best plan.  Only consider cost when selecting a best plan.2 - (Default) Consider access paths for index ordering in order by. Use both the cost and the key parts when selecting the best plan. 3 - Same as 0, except the second pass for order byis executed if the row estimate is less than the threshold specified by sn_order_by_limit_row_threshold.4 - (Experimental) Same as 0, except the second pass for order byis executed if the cost for the referral key differs from the costfor the key part analysis by a factor of sn_order_by_factor_threshold. Not implemented.5 - Same as 0, except the second pass for order by isexecuted if reference key's access type is ALL. The second pass only uses cost comparison.
+VARIABLE_COMMENT	Controls the level of optimization performed for select queries  that has a order by limit clause. Meaning: 0 - Do not reconsider access paths for index ordering. 1 - Consider access paths for index ordering in order by. but do not take key parts into account when selecting the best plan. Only consider cost when selecting a best plan. 2 - (Default) Consider access paths for index ordering in order by. Use both the cost and the key parts when selecting the best plan. 3 - Same as 0, except the second pass for order by is executed if the row estimate is less than the threshold specified by sn_order_by_limit_row_threshold. 4 - (Experimental) Same as 0, except the second pass for order by is executed if the cost for the referral key differs from the cost for the key part analysis by a factor of sn_order_by_factor_threshold. Not implemented. 5 - Same as 0, except the second pass for order by is executed if reference key's access type is ALL. The second pass only uses cost comparison.
 NUMERIC_MIN_VALUE	0
 NUMERIC_MAX_VALUE	5
 NUMERIC_BLOCK_SIZE	1
@@ -3765,7 +3785,7 @@ COMMAND_LINE_ARGUMENT	REQUIRED
 VARIABLE_NAME	SN_ORDER_BY_LIMIT_ROW_THRESHOLD
 VARIABLE_SCOPE	SESSION
 VARIABLE_TYPE	BIGINT UNSIGNED
-VARIABLE_COMMENT	To be used with sn_order_by_limit_optimize_level=3 Evaluates the second phase of the order by optimizationif sn_order_by_row_threshold <= row estimate. (In other words, if sn_order_by_row_threshold > row estimate, then, skip evaluatingthe second phase of order by).
+VARIABLE_COMMENT	To be used with sn_order_by_limit_optimize_level=3 Evaluates the second phase of the order by optimization if sn_order_by_row_threshold <= row estimate. (In other words, if sn_order_by_row_threshold > row estimate, then, skip evaluating the second phase of order by).
 NUMERIC_MIN_VALUE	0
 NUMERIC_MAX_VALUE	18446744073709551615
 NUMERIC_BLOCK_SIZE	1

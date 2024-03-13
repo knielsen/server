@@ -54,6 +54,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "sql_show.h"
 #include "opt_trace_context.h"
+#include "snc_ull_hash.h"
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -2593,26 +2594,26 @@ static Sys_var_ulong Sys_optimizer_sn_order_by_limit_optimize_level(
         "0 - Do not reconsider access paths for index ordering. "
         "1 - Consider access paths for index ordering in order by. "
         "but do not take key parts into account when selecting the best plan. "
-        " Only consider cost when selecting a best plan."
+        "Only consider cost when selecting a best plan. "
         "2 - (Default) Consider access paths for index ordering in order by. "
         "Use both the cost and the key parts when selecting the best plan. "
-        "3 - Same as 0, except the second pass for order by"
-        "is executed if the row estimate is less than the threshold specified by sn_order_by_limit_row_threshold."
-        "4 - (Experimental) Same as 0, except the second pass for order by"
-        "is executed if the cost for the referral key differs from the cost"
-        "for the key part analysis by a factor of sn_order_by_factor_threshold. Not implemented."
-        "5 - Same as 0, except the second pass for order by is"
-        "executed if reference key's access type is ALL. The second pass only"
-        " uses cost comparison.",
+        "3 - Same as 0, except the second pass for order by "
+        "is executed if the row estimate is less than the threshold specified by sn_order_by_limit_row_threshold. "
+        "4 - (Experimental) Same as 0, except the second pass for order by "
+        "is executed if the cost for the referral key differs from the cost "
+        "for the key part analysis by a factor of sn_order_by_factor_threshold. Not implemented. "
+        "5 - Same as 0, except the second pass for order by is "
+        "executed if reference key's access type is ALL. The second pass only "
+        "uses cost comparison.",
         SESSION_VAR(sn_order_by_limit_optimize_level), CMD_LINE(REQUIRED_ARG),
         VALID_RANGE(0, 5), DEFAULT(2), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_optimizer_sn_order_by_row_threshold(
         "sn_order_by_limit_row_threshold",
         "To be used with sn_order_by_limit_optimize_level=3 "
-        "Evaluates the second phase of the order by optimization"
-        "if sn_order_by_row_threshold <= row estimate. (In other words,"
-        " if sn_order_by_row_threshold > row estimate, then, skip evaluating"
+        "Evaluates the second phase of the order by optimization "
+        "if sn_order_by_row_threshold <= row estimate. (In other words, "
+        "if sn_order_by_row_threshold > row estimate, then, skip evaluating "
         "the second phase of order by).",
         SESSION_VAR(sn_order_by_row_threshold), CMD_LINE(REQUIRED_ARG),
         VALID_RANGE(0, ULONG_MAX), DEFAULT(300000), BLOCK_SIZE(1));
@@ -3405,6 +3406,22 @@ static bool fix_rpl_semi_sync_slave_kill_conn_timeout(sys_var *self, THD *thd,
   return false;
 }
 
+static bool fix_snc_default_lock_expiration(sys_var *self, THD *thd,
+                                                      enum_var_type type)
+{
+  snc_ull_hash.set_default_lock_expiration(snc_default_lock_expiration);
+  return false;
+}
+
+static bool fix_snc_lock_memory_target(sys_var *self, THD *thd,
+                                                      enum_var_type type)
+{
+  snc_ull_hash.set_memory_target(snc_lock_memory_target);
+  return false;
+}
+
+
+
 static Sys_var_mybool Sys_semisync_slave_enabled(
        "rpl_semi_sync_slave_enabled",
        "Enable semi-synchronous replication slave (disabled by default).",
@@ -3455,6 +3472,23 @@ static Sys_var_ulonglong Sys_sort_buffer(
        SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(MIN_SORT_MEMORY, SIZE_T_MAX), DEFAULT(MAX_SORT_MEMORY),
        BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_snc_default_lock_expiration(
+       "snc_default_lock_expiration",
+       "Default expiration time a session can hold a ServiceNow lock for (seconds)",
+       GLOBAL_VAR(snc_default_lock_expiration), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(120), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_snc_default_lock_expiration));
+
+static Sys_var_ulonglong Sys_snc_lock_memory_target(
+       "snc_lock_memory_target",
+       "Target amount of memory for the ServiceNow lock memory pool.",
+       GLOBAL_VAR(snc_lock_memory_target), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(4096, SIZE_T_MAX), DEFAULT(1024 * 1024 * 1024), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_snc_lock_memory_target));
+
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {

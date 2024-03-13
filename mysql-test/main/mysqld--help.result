@@ -613,6 +613,11 @@ The following specify which files/extra groups are read (specified before remain
  Unused
  --metadata-locks-hash-instances=# 
  Unused
+ --metadata-snc-lock-info[=name] 
+ Enable or disable METADATA_SNC_LOCK_INFO plugin. One of:
+ ON, OFF, FORCE (don't start if the plugin fails to load),
+ FORCE_PLUS_PERMANENT (like FORCE, but the plugin can not
+ be uninstalled).
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -1251,26 +1256,32 @@ The following specify which files/extra groups are read (specified before remain
  Do not reconsider access paths for index ordering. 1 -
  Consider access paths for index ordering in order by. but
  do not take key parts into account when selecting the
- best plan.  Only consider cost when selecting a best
- plan.2 - (Default) Consider access paths for index
- ordering in order by. Use both the cost and the key parts
- when selecting the best plan. 3 - Same as 0, except the
- second pass for order byis executed if the row estimate
- is less than the threshold specified by
- sn_order_by_limit_row_threshold.4 - (Experimental) Same
- as 0, except the second pass for order byis executed if
- the cost for the referral key differs from the costfor
+ best plan. Only consider cost when selecting a best plan.
+ 2 - (Default) Consider access paths for index ordering in
+ order by. Use both the cost and the key parts when
+ selecting the best plan. 3 - Same as 0, except the second
+ pass for order by is executed if the row estimate is less
+ than the threshold specified by
+ sn_order_by_limit_row_threshold. 4 - (Experimental) Same
+ as 0, except the second pass for order by is executed if
+ the cost for the referral key differs from the cost for
  the key part analysis by a factor of
- sn_order_by_factor_threshold. Not implemented.5 - Same as
- 0, except the second pass for order by isexecuted if
+ sn_order_by_factor_threshold. Not implemented. 5 - Same
+ as 0, except the second pass for order by is executed if
  reference key's access type is ALL. The second pass only
  uses cost comparison.
  --sn-order-by-limit-row-threshold=# 
  To be used with sn_order_by_limit_optimize_level=3
- Evaluates the second phase of the order by optimizationif
- sn_order_by_row_threshold <= row estimate. (In other
+ Evaluates the second phase of the order by optimization
+ if sn_order_by_row_threshold <= row estimate. (In other
  words, if sn_order_by_row_threshold > row estimate, then,
- skip evaluatingthe second phase of order by).
+ skip evaluating the second phase of order by).
+ --snc-default-lock-expiration=# 
+ Default expiration time a session can hold a ServiceNow
+ lock for (seconds)
+ --snc-lock-memory-target=# 
+ Target amount of memory for the ServiceNow lock memory
+ pool.
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1610,6 +1621,7 @@ max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
 metadata-locks-hash-instances 8
+metadata-snc-lock-info ON
 min-examined-row-limit 0
 mrr-buffer-size 262144
 multi-range-count 256
@@ -1765,6 +1777,8 @@ slow-launch-time 2
 slow-query-log FALSE
 sn-order-by-limit-optimize-level 2
 sn-order-by-limit-row-threshold 300000
+snc-default-lock-expiration 120
+snc-lock-memory-target 1073741824
 sort-buffer-size 2097152
 sql-mode STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 sql-safe-updates FALSE

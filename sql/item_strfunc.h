@@ -74,6 +74,29 @@ public:
   bool fix_fields(THD *thd, Item **ref);
 };
 
+class Item_func_snc_is_used_lock :public Item_str_func
+{
+  bool check_arguments() const
+  { return args[0]->check_type_general_purpose_string(func_name()); }
+  String value;
+public:
+  Item_func_snc_is_used_lock(THD *thd, Item *a): Item_str_func(thd, a) {}
+  String* val_str(String* res);
+  const char *func_name() const { return "snc_is_used_lock"; }
+
+  bool fix_length_and_dec()
+  {
+    maybe_null=args[0]->maybe_null;
+    return FALSE;
+  }
+
+  bool check_vcol_func_processor(void *arg)
+  {
+    return mark_unsupported_function(func_name(), "()", arg, VCOL_IMPOSSIBLE);
+  }
+  Item *get_copy(THD *thd)
+  { return get_item_copy<Item_func_snc_is_used_lock>(thd, this); }
+};
 
 
 /*
