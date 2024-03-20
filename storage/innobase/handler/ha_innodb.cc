@@ -989,6 +989,7 @@ static SHOW_VAR innodb_status_variables[]= {
    SHOW_ULONGLONG},
   {"master_thread_active_loops", &srv_main_active_loops, SHOW_SIZE_T},
   {"master_thread_idle_loops", &srv_main_idle_loops, SHOW_SIZE_T},
+  {"disable_purge_assert", &export_vars.innodb_disable_purge_assert, SHOW_BOOL},
   {"log_is_in_distress", &export_vars.innodb_log_is_in_distress, SHOW_LONG},
   {"max_trx_id", &export_vars.innodb_max_trx_id, SHOW_ULONGLONG},
 #ifdef BTR_CUR_HASH_ADAPT
@@ -19328,6 +19329,11 @@ static MYSQL_SYSVAR_ENUM(deadlock_report, innodb_deadlock_report,
   "How to report deadlocks (if innodb_deadlock_detect=ON)",
   NULL, NULL, Deadlock::REPORT_FULL, &innodb_deadlock_report_typelib);
 
+static MYSQL_SYSVAR_BOOL(disable_purge_assert, srv_disable_purge_assert,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable/disable InnoDB purge thread assert (default ON)",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_UINT(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of B-tree page filled during bulk insert",
@@ -19916,6 +19922,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(temp_data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(disable_purge_assert),
   MYSQL_SYSVAR(stats_include_delete_marked),
   MYSQL_SYSVAR(use_atomic_writes),
   MYSQL_SYSVAR(fast_shutdown),

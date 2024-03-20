@@ -79,6 +79,7 @@ ulong	srv_fatal_semaphore_wait_threshold =  DEFAULT_SRV_FATAL_SEMAPHORE_TIMEOUT;
 in microseconds, in order to reduce the lagging of the purge thread. */
 ulint	srv_dml_needed_delay;
 
+my_bool	srv_disable_purge_assert;
 const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
