@@ -87,6 +87,7 @@ bool	srv_error_monitor_active;
 bool	srv_buf_dump_thread_active;
 bool	srv_dict_stats_thread_active;
 bool	srv_buf_resize_thread_active;
+my_bool	srv_disable_purge_assert;
 
 my_bool	srv_scrub_log;
 

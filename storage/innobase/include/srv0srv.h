@@ -192,6 +192,8 @@ struct srv_stats_t
 	ulint_ctr_64_t		n_temp_blocks_decrypted;
 };
 
+extern my_bool srv_disable_purge_assert;
+
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -967,6 +969,7 @@ struct export_var_t{
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
 	ibool innodb_log_is_in_distress;
+	ibool innodb_disable_purge_assert;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */

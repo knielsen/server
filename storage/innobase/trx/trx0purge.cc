@@ -116,7 +116,17 @@ inline bool TrxUndoRsegsIterator::set_next()
 	ut_ad(purge_sys.rseg->space->id == TRX_SYS_SPACE
 	      || srv_is_undo_tablespace(purge_sys.rseg->space->id));
 
-	ut_a(purge_sys.tail.trx_no <= purge_sys.rseg->last_trx_no());
+	if (srv_disable_purge_assert) {
+		if (purge_sys.tail.trx_no > purge_sys.rseg->last_trx_no())
+			ib::error() << "Condition purge_sys.tail.trx_no <= purge_sys.rseg->last_trx_no() failed: "
+						<< purge_sys.tail.trx_no << " > "
+						<< purge_sys.rseg->last_trx_no()
+						<< " : trx_no=" << purge_sys.tail.trx_no
+						<< " : trx_id=" << purge_sys.query->trx->id;
+	}
+	else {
+		ut_a(purge_sys.tail.trx_no <= purge_sys.rseg->last_trx_no());
+	}
 
 	purge_sys.tail.trx_no = purge_sys.rseg->last_trx_no();
 	purge_sys.hdr_offset = purge_sys.rseg->last_offset();

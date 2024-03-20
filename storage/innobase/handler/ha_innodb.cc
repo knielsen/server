@@ -1039,6 +1039,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"disable_purge_assert",
+  (char*) &export_vars.innodb_disable_purge_assert,	  SHOW_BOOL},
   {"log_is_in_distress",
   (char*) &export_vars.innodb_log_is_in_distress,		  SHOW_LONG},
   {"log_waits",
@@ -19532,6 +19534,11 @@ static MYSQL_SYSVAR_BOOL(deadlock_detect, innobase_deadlock_detect,
   " and we rely on innodb_lock_wait_timeout in case of deadlock.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(disable_purge_assert, srv_disable_purge_assert,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable/disable InnoDB purge thread assert (default ON).",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_UINT(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of B-tree page filled during bulk insert",
@@ -20217,6 +20224,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(temp_data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(disable_purge_assert),
   MYSQL_SYSVAR(stats_include_delete_marked),
   MYSQL_SYSVAR(use_atomic_writes),
   MYSQL_SYSVAR(fast_shutdown),
