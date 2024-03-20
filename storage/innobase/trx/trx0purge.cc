@@ -882,7 +882,17 @@ bool purge_sys_t::choose_next_log(trx_t *trx) noexcept
   exclusive purge_sys.latch. The purge_sys.head may be read by
   purge_truncation_callback(). */
   ut_a(hdr_page_no != FIL_NULL);
-  ut_a(tail.trx_no <= last_trx_no);
+  if (srv_disable_purge_assert) {
+    if (tail.trx_no > last_trx_no)
+      ib::error() << "Condition tail.trx_no <= last_trx_no failed: "
+                  << tail.trx_no << " > "
+                  << last_trx_no
+                  << " : trx_no=" << tail.trx_no
+                  << " : trx_id=" << trx->id;
+  }
+  else {
+    ut_a(tail.trx_no <= last_trx_no);
+  }
   tail.trx_no = last_trx_no;
 
   if (!rseg->needs_purge)

@@ -121,6 +121,8 @@ struct srv_stats_t
 	ulint_ctr_n_t		n_temp_blocks_decrypted;
 };
 
+extern my_bool srv_disable_purge_assert;
+
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -600,6 +602,7 @@ struct export_var_t{
 	lsn_t innodb_lsn_flushed;
 	lsn_t innodb_lsn_last_checkpoint;
 	my_bool innodb_log_is_in_distress;
+	my_bool innodb_disable_purge_assert;
 	trx_id_t innodb_max_trx_id;
 #ifdef BTR_CUR_HASH_ADAPT
 	ulint innodb_mem_adaptive_hash;
