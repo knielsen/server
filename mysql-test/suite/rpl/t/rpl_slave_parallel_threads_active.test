@@ -1,0 +1,150 @@
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--connection master
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,0), (2,0), (3,0), (4,0), (5,0);
+
+--sync_slave_with_master
+--source include/stop_slave.inc
+SET @old_parallel_threads= @@GLOBAL.slave_parallel_threads;
+SET GLOBAL slave_parallel_threads=5;
+SET @old_parallel_mode= @@GLOBAL.slave_parallel_mode;
+SET GLOBAL slave_parallel_mode= aggressive;
+SET @old_active= @@GLOBAL.slave_parallel_threads_active;
+--source include/start_slave.inc
+
+# @@slave_parallel_threads_active can be set without stopping slave.
+# Start from the default value 0, which means "no limit".
+SET GLOBAL slave_parallel_threads_active= 0;
+
+--echo *** 1. Test the default, that SQL driver thread can queue to all threads.
+--connection slave1
+LOCK TABLE t1 WRITE;
+
+--connection master
+--let $i= 1
+while ($i <= 5) {
+  eval UPDATE t1 SET b=1 WHERE a=$i;
+  inc $i;
+}
+--save_master_pos
+
+--connection slave
+--let $wait_condition= SELECT COUNT(*)=5 FROM information_schema.processlist WHERE command='Slave_worker' AND state='Waiting for table metadata lock'
+--source include/wait_condition.inc
+SELECT command, state, info
+  FROM information_schema.processlist
+ WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+
+--connection slave1
+UNLOCK TABLES;
+--connection slave
+--sync_with_master
+SELECT * FROM t1 ORDER BY a;
+
+
+--echo *** 2. Test limiting to just one thread.
+--connection slave
+SET GLOBAL slave_parallel_threads_active= 1;
+
+--connection slave1
+LOCK TABLE t1 WRITE;
+
+--connection master
+--let $i= 1
+while ($i <= 5) {
+  eval UPDATE t1 SET b=2 WHERE a=$i;
+  inc $i;
+}
+--save_master_pos
+
+--connection slave
+--let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist WHERE command='Slave_worker' AND state='Waiting for table metadata lock'
+--source include/wait_condition.inc
+SELECT command, state, info
+  FROM information_schema.processlist
+ WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+
+--connection slave1
+UNLOCK TABLES;
+--connection slave
+--sync_with_master
+SELECT * FROM t1 ORDER BY a;
+
+
+--echo *** 3. Test limiting to just 3 threads.
+--connection slave
+SET GLOBAL slave_parallel_threads_active= 3;
+
+--connection slave1
+LOCK TABLE t1 WRITE;
+
+--connection master
+--let $i= 1
+while ($i <= 5) {
+  eval UPDATE t1 SET b=3 WHERE a=$i;
+  inc $i;
+}
+--save_master_pos
+
+--connection slave
+--let $wait_condition= SELECT COUNT(*)=3 FROM information_schema.processlist WHERE command='Slave_worker' AND state='Waiting for table metadata lock'
+--source include/wait_condition.inc
+SELECT command, state, info
+  FROM information_schema.processlist
+ WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+
+--connection slave1
+UNLOCK TABLES;
+--connection slave
+--sync_with_master
+SELECT * FROM t1 ORDER BY a;
+
+
+--echo *** 4. Test setting a high limit.
+--connection slave
+SET GLOBAL slave_parallel_threads_active= 100;
+
+--connection slave1
+LOCK TABLE t1 WRITE;
+
+--connection master
+--let $i= 1
+while ($i <= 5) {
+  eval UPDATE t1 SET b=4 WHERE a=$i;
+  inc $i;
+}
+--save_master_pos
+
+--connection slave
+--let $wait_condition= SELECT COUNT(*)=5 FROM information_schema.processlist WHERE command='Slave_worker' AND state='Waiting for table metadata lock'
+--source include/wait_condition.inc
+SELECT command, state, info
+  FROM information_schema.processlist
+ WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+
+--connection slave1
+UNLOCK TABLES;
+--connection slave
+--sync_with_master
+SELECT * FROM t1 ORDER BY a;
+
+
+# Cleanup
+--connection master
+DROP TABLE t1;
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_threads= @old_parallel_threads;
+SET GLOBAL slave_parallel_mode= @old_parallel_mode;
+SET GLOBAL slave_parallel_threads_active= @old_active;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

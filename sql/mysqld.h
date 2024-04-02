@@ -251,6 +251,7 @@ extern ulong thread_cache_size;
 extern ulong stored_program_cache_size;
 extern ulong opt_slave_parallel_threads;
 extern ulong opt_slave_domain_parallel_threads;
+extern uint opt_slave_parallel_threads_active;
 extern ulong opt_slave_parallel_max_queued;
 extern ulong opt_slave_parallel_mode;
 extern ulong opt_binlog_commit_wait_count;

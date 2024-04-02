@@ -2140,6 +2140,16 @@ static Sys_var_ulong Sys_slave_parallel_max_queued(
        VALID_RANGE(0,2147483647), DEFAULT(131072), BLOCK_SIZE(1));
 
 
+static Sys_var_uint Sys_slave_parallel_threads_active(
+       "slave_parallel_threads_active",
+       "Limits the number of actively used parallel replication worker "
+       "threads used to less that current @@slave_parallel_threads and/or "
+       "@@slave_domain_parallel_threads. 0 means no limit.",
+       GLOBAL_VAR(opt_slave_parallel_threads_active), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+
 bool
 Sys_var_slave_parallel_mode::global_update(THD *thd, set_var *var)
 {

@@ -1,0 +1,149 @@
+include/master-slave.inc
+[connection master]
+connection master;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,0), (2,0), (3,0), (4,0), (5,0);
+connection slave;
+include/stop_slave.inc
+SET @old_parallel_threads= @@GLOBAL.slave_parallel_threads;
+SET GLOBAL slave_parallel_threads=5;
+SET @old_parallel_mode= @@GLOBAL.slave_parallel_mode;
+SET GLOBAL slave_parallel_mode= aggressive;
+SET @old_active= @@GLOBAL.slave_parallel_threads_active;
+include/start_slave.inc
+SET GLOBAL slave_parallel_threads_active= 0;
+*** 1. Test the default, that SQL driver thread can queue to all threads.
+connection slave1;
+LOCK TABLE t1 WRITE;
+connection master;
+UPDATE t1 SET b=1 WHERE a=1;
+UPDATE t1 SET b=1 WHERE a=2;
+UPDATE t1 SET b=1 WHERE a=3;
+UPDATE t1 SET b=1 WHERE a=4;
+UPDATE t1 SET b=1 WHERE a=5;
+connection slave;
+SELECT command, state, info
+FROM information_schema.processlist
+WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+command	state	info
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=1 WHERE a=1
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=1 WHERE a=2
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=1 WHERE a=3
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=1 WHERE a=4
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=1 WHERE a=5
+connection slave1;
+UNLOCK TABLES;
+connection slave;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	1
+3	1
+4	1
+5	1
+*** 2. Test limiting to just one thread.
+connection slave;
+SET GLOBAL slave_parallel_threads_active= 1;
+connection slave1;
+LOCK TABLE t1 WRITE;
+connection master;
+UPDATE t1 SET b=2 WHERE a=1;
+UPDATE t1 SET b=2 WHERE a=2;
+UPDATE t1 SET b=2 WHERE a=3;
+UPDATE t1 SET b=2 WHERE a=4;
+UPDATE t1 SET b=2 WHERE a=5;
+connection slave;
+SELECT command, state, info
+FROM information_schema.processlist
+WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+command	state	info
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=2 WHERE a=1
+Slave_worker	Waiting for work from SQL thread	NULL
+Slave_worker	Waiting for work from SQL thread	NULL
+Slave_worker	Waiting for work from SQL thread	NULL
+Slave_worker	Waiting for work from SQL thread	NULL
+connection slave1;
+UNLOCK TABLES;
+connection slave;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	2
+3	2
+4	2
+5	2
+*** 3. Test limiting to just 3 threads.
+connection slave;
+SET GLOBAL slave_parallel_threads_active= 3;
+connection slave1;
+LOCK TABLE t1 WRITE;
+connection master;
+UPDATE t1 SET b=3 WHERE a=1;
+UPDATE t1 SET b=3 WHERE a=2;
+UPDATE t1 SET b=3 WHERE a=3;
+UPDATE t1 SET b=3 WHERE a=4;
+UPDATE t1 SET b=3 WHERE a=5;
+connection slave;
+SELECT command, state, info
+FROM information_schema.processlist
+WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+command	state	info
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=3 WHERE a=1
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=3 WHERE a=2
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=3 WHERE a=3
+Slave_worker	Waiting for work from SQL thread	NULL
+Slave_worker	Waiting for work from SQL thread	NULL
+connection slave1;
+UNLOCK TABLES;
+connection slave;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	3
+2	3
+3	3
+4	3
+5	3
+*** 4. Test setting a high limit.
+connection slave;
+SET GLOBAL slave_parallel_threads_active= 100;
+connection slave1;
+LOCK TABLE t1 WRITE;
+connection master;
+UPDATE t1 SET b=4 WHERE a=1;
+UPDATE t1 SET b=4 WHERE a=2;
+UPDATE t1 SET b=4 WHERE a=3;
+UPDATE t1 SET b=4 WHERE a=4;
+UPDATE t1 SET b=4 WHERE a=5;
+connection slave;
+SELECT command, state, info
+FROM information_schema.processlist
+WHERE command='Slave_worker'
+ ORDER BY command, state, info;
+command	state	info
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=4 WHERE a=1
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=4 WHERE a=2
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=4 WHERE a=3
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=4 WHERE a=4
+Slave_worker	Waiting for table metadata lock	UPDATE t1 SET b=4 WHERE a=5
+connection slave1;
+UNLOCK TABLES;
+connection slave;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	4
+2	4
+3	4
+4	4
+5	4
+connection master;
+DROP TABLE t1;
+connection slave;
+include/stop_slave.inc
+SET GLOBAL slave_parallel_threads= @old_parallel_threads;
+SET GLOBAL slave_parallel_mode= @old_parallel_mode;
+SET GLOBAL slave_parallel_threads_active= @old_active;
+include/start_slave.inc
+include/rpl_end.inc
