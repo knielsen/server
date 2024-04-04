@@ -2615,7 +2615,9 @@ rpl_parallel_entry::check_scheduling_generation(sched_bucket *cur)
   if (idx == current_generation_idx)
   {
     ++idx;
-    if (idx >= rpl_thread_max)
+    if (idx >= rpl_thread_max ||
+        (opt_slave_parallel_threads_active > 0 &&
+         idx >= opt_slave_parallel_threads_active))
     {
       /* A new generation; all workers have been scheduled at least once. */
       idx= 0;
@@ -2710,6 +2712,12 @@ rpl_parallel_entry::choose_thread(rpl_group_info *rgi, bool *did_enter_cond,
   {
     /* New event group; cycle the thread scheduling buckets round-robin. */
     thread_sched_fifo->push_back(thread_sched_fifo->get());
+    if (unlikely(opt_slave_parallel_threads_active > 0))
+    {
+      while ((ulong)(thread_sched_fifo->head() - rpl_threads) >=
+             opt_slave_parallel_threads_active)
+        thread_sched_fifo->push_back(thread_sched_fifo->get());
+    }
 
     //rpl_thread_idx will be updated handle_split_alter
     if (handle_split_alter(this, gtid_ev, &cur_thr, did_enter_cond, rgi,

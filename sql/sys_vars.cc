@@ -2405,6 +2405,10 @@ fix_slave_parallel_threads(sys_var *self, THD *thd, enum_var_type type)
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
   err= give_error_if_slave_running(0);
+  if (!err && (opt_slave_parallel_threads_active > opt_slave_parallel_threads))
+  {
+    opt_slave_parallel_threads_active= opt_slave_parallel_threads;
+  }
   mysql_mutex_lock(&LOCK_global_system_variables);
 
   return err;
@@ -2455,6 +2459,21 @@ fix_slave_domain_parallel_threads(sys_var *self, THD *thd, enum_var_type type)
   return running;
 }
 
+static bool
+check_slave_parallel_threads_active(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->save_result.ulonglong_value > opt_slave_parallel_threads)
+  {
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                        "Trying to set the number of active replication worker threads (%d) "
+                        "higher than the total number of worker threads (%d)",
+                        (int)var->save_result.ulonglong_value,
+                        (int)opt_slave_parallel_threads);
+    return true;
+  }
+
+  return false;
+}
 
 static Sys_var_on_access_global<Sys_var_ulong,
                        PRIV_SET_SYSTEM_GLOBAL_VAR_SLAVE_DOMAIN_PARALLEL_THREADS>
@@ -2482,6 +2501,16 @@ Sys_slave_parallel_max_queued(
        "--slave-parallel-threads > 0",
        GLOBAL_VAR(opt_slave_parallel_max_queued), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0,2147483647), DEFAULT(131072), BLOCK_SIZE(1));
+
+
+static Sys_var_ulong Sys_slave_parallel_threads_active(
+       "slave_parallel_threads_active",
+       "Limits the number of actively used parallel replication worker "
+       "threads used to less that current @@slave_parallel_threads and/or "
+       "@@slave_domain_parallel_threads. 0 means no limit",
+       GLOBAL_VAR(opt_slave_parallel_threads_active), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_parallel_threads_active));
 
 
 bool
