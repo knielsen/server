@@ -547,6 +547,7 @@ ulong stored_program_cache_size= 0;
 
 ulong opt_slave_parallel_threads= 0;
 ulong opt_slave_domain_parallel_threads= 0;
+ulong opt_slave_parallel_threads_active= 0;
 ulong opt_slave_parallel_mode= SLAVE_PARALLEL_CONSERVATIVE;
 ulong opt_binlog_commit_wait_count= 0;
 ulong opt_binlog_commit_wait_usec= 0;
@@ -5480,6 +5481,11 @@ static int init_server_components()
   }
 #else
   locked_in_memory= 0;
+#endif
+
+#ifdef HAVE_REPLICATION
+  if (opt_slave_parallel_threads_active > opt_slave_parallel_threads)
+    SYSVAR_AUTOSIZE(opt_slave_parallel_threads_active, opt_slave_parallel_threads);
 #endif
 
   ft_init_stopwords();

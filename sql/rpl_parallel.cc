@@ -2180,7 +2180,9 @@ rpl_parallel_entry::choose_thread(rpl_group_info *rgi, bool *did_enter_cond,
   if (!reuse)
   {
     ++idx;
-    if (idx >= rpl_thread_max)
+    if (idx >= rpl_thread_max ||
+        (opt_slave_parallel_threads_active > 0 &&
+         idx >= opt_slave_parallel_threads_active))
       idx= 0;
     rpl_thread_idx= idx;
   }
