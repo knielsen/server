@@ -564,6 +564,7 @@ ulong stored_program_cache_size= 0;
 
 ulong opt_slave_parallel_threads= 0;
 ulong opt_slave_domain_parallel_threads= 0;
+ulong opt_slave_parallel_threads_active= 0;
 ulong opt_slave_parallel_mode;
 ulong opt_binlog_commit_wait_count= 0;
 ulong opt_binlog_commit_wait_usec= 0;
@@ -5796,6 +5797,11 @@ static int init_server_components()
     leaks.
   */
   prctl(PR_SET_THP_DISABLE, 1, 0, 0, 0);
+#endif
+
+#ifdef HAVE_REPLICATION
+  if (opt_slave_parallel_threads_active > opt_slave_parallel_threads)
+    SYSVAR_AUTOSIZE(opt_slave_parallel_threads_active, opt_slave_parallel_threads);
 #endif
 
   ft_init_stopwords();

@@ -1429,6 +1429,11 @@ The following specify which files/extra groups are read (specified before remain
  replication domains. Note that these threads are in
  addition to the IO and SQL threads, which are always
  created by a replication slave
+ --slave-parallel-threads-active=# 
+ Limits the number of actively used parallel replication
+ worker threads used to less that current
+ @@slave_parallel_threads and/or
+ @@slave_domain_parallel_threads. 0 means no limit
  --slave-parallel-workers=# 
  Alias for slave_parallel_threads
  --slave-run-triggers-for-rbr=name 
@@ -2036,6 +2041,7 @@ slave-net-timeout 60
 slave-parallel-max-queued 131072
 slave-parallel-mode conservative
 slave-parallel-threads 0
+slave-parallel-threads-active 0
 slave-parallel-workers 0
 slave-run-triggers-for-rbr NO
 slave-skip-errors OFF
