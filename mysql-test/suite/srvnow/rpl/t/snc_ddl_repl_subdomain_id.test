@@ -1,0 +1,140 @@
+--source include/have_innodb.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+
+--connect (slaveA,127.0.0.1,root,,test,$SLAVE_MYPORT)
+--connect (slaveB,127.0.0.1,root,,test,$SLAVE_MYPORT)
+
+--connection slaveA
+SET @old_snc_slave_ddl_repl_subdomain_id= @@GLOBAL.snc_slave_ddl_repl_subdomain_id;
+
+--connection master
+SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomain_id;
+
+# Test: 2 tables, t1 and t2
+# t1 is locked and we are trying to add a new index - this operation is blocked until the table is unlocked
+# t2 is not related to the lock, yet insert waits for index creation on t1 to complete
+
+# Demonstrate lock when feature is disabled
+--connection slaveA
+SET GLOBAL snc_slave_ddl_repl_subdomain_id=0;
+
+--connection master
+SET GLOBAL snc_master_ddl_repl_subdomain_id=0;
+CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb;
+CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb;
+sync_slave_with_master;
+
+--connection slaveA
+STOP SLAVE;
+CHANGE MASTER TO master_use_gtid=slave_pos;
+LOCK TABLE t1 WRITE;
+
+--connection master
+ALTER TABLE t1 ADD INDEX i1 (id);
+INSERT INTO t2 VALUES (100,100);
+--let $gtid1= `SELECT @@gtid_binlog_pos`
+
+--connection slaveB
+START SLAVE;
+
+--echo *** Waiting for t2 insert to be replicated...
+let $N=`SELECT COUNT(*)-1 FROM t2`;
+let $i=3;
+while ($N)
+{
+  --echo x
+
+  dec $i;
+  if ($i == 0)
+  {
+    --connection slaveA
+    UNLOCK TABLES;
+    --connection slaveB
+  }
+
+  sleep 1;
+  let $N=`SELECT COUNT(*)-1 FROM t2`;
+}
+--echo *** Insert into t2 replicated
+
+SELECT * FROM t2;
+--source include/show_binlog_events.inc
+
+--connection slaveA
+eval SELECT master_gtid_wait('$gtid1');
+--source include/show_binlog_events.inc
+
+DELETE FROM t2;
+
+
+# Now running the same test but with a separate subdomain for index DDL
+# This time there is no waiting for t2 insert
+# The order of events in binlog is different
+
+--connection slaveA
+STOP SLAVE;
+LOCK TABLE t1 WRITE;
+SET GLOBAL snc_slave_ddl_repl_subdomain_id=7;
+
+--connection master
+SET GLOBAL snc_master_ddl_repl_subdomain_id=7;
+
+ALTER TABLE t1 ADD INDEX i2 (val);
+INSERT INTO t2 VALUES (200, 200);
+--let $gtid2= `SELECT @@gtid_binlog_pos`
+
+--connection slaveB
+START SLAVE;
+
+--echo *** Waiting for t2 insert to be replicated...
+let $N=`SELECT COUNT(*)-1 FROM t2`;
+let $i=3;
+while ($N)
+{
+  --echo x
+
+  dec $i;
+  if ($i == 0)
+  {
+    --connection slaveA
+    UNLOCK TABLES;
+    --connection slaveB
+  }
+
+  sleep 1;
+  let $N=`SELECT COUNT(*)-1 FROM t2`;
+}
+--echo *** Insert into t2 replicated
+
+SELECT * FROM t2;
+--source include/show_binlog_events.inc
+
+--connection slaveA
+UNLOCK TABLES;
+eval SELECT master_gtid_wait('$gtid2');
+--source include/show_binlog_events.inc
+
+# When ADD INDEX is not the only DDL in the statement (like ADD COLUMN + ADD INDEX)
+# then the whole statement should be executed in a default domain.
+#
+#--connection master
+#show variables like '%sn_gtid%';
+#ALTER TABLE t1 ADD COLUMN x INT, ADD INDEX i3(x);
+#ALTER TABLE t2 CHANGE COLUMN id zzz VARCHAR(32), ADD INDEX i4(zzz);
+#sync_slave_with_master;
+#
+#--connection slaveA
+#--source include/show_binlog_events.inc
+#SHOW BINLOG EVENTS;
+#
+
+--connection slaveA
+SET GLOBAL snc_slave_ddl_repl_subdomain_id= @old_snc_slave_ddl_repl_subdomain_id;
+
+--connection master
+SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl_end.inc

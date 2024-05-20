@@ -10735,7 +10735,25 @@ end_inplace:
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->tmp_table())));
-  if (write_bin_log(thd, true, thd->query(), thd->query_length()))
+
+  if (!thd->slave_thread &&
+      alter_info->flags == ALTER_ADD_INDEX)
+  {
+    uint32 current_gtid_domain_id= thd->variables.gtid_domain_id;
+    if (snc_master_ddl_repl_subdomain_id != 0)
+    {
+      thd->variables.gtid_domain_id= snc_master_ddl_repl_subdomain_id;
+    }
+
+    error= write_bin_log(thd, true, thd->query(), thd->query_length());
+    thd->variables.gtid_domain_id= current_gtid_domain_id;
+  }
+  else
+  {
+    error= write_bin_log(thd, true, thd->query(), thd->query_length());
+  }
+
+  if (error)
     DBUG_RETURN(true);
 
   if (!alter_ctx.tmp_table)

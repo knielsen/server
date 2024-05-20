@@ -1719,6 +1719,35 @@ static bool check_gtid_seq_no(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
+static bool
+check_snc_ddl_repl_subdomain_id(sys_var *self, THD *thd, set_var *var)
+{
+  return false;
+}
+
+static Sys_var_uint Sys_snc_master_ddl_repl_subdomain_id(
+       "snc_master_ddl_repl_subdomain_id",
+       "Replicate some DDL statements in out-of-order alternate domain "
+       "which is running always behind the default domain. "
+       "The value of snc_master_ddl_repl_subdomain_id on master should match "
+       "the value of snc_slave_ddl_repl_subdomain_id on slave. "
+       "0 = feature disabled.",
+       GLOBAL_VAR(snc_master_ddl_repl_subdomain_id),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_snc_ddl_repl_subdomain_id));
+
+static Sys_var_uint Sys_snc_slave_ddl_repl_subdomain_id(
+       "snc_slave_ddl_repl_subdomain_id",
+       "Execute some replicated DDL statements in out-of-order alternate domain "
+       "which is running always behind the default domain. "
+       "The value of snc_master_ddl_repl_subdomain_id on master should match "
+       "the value of snc_slave_ddl_repl_subdomain_id on slave. "
+       "0 = feature disabled.",
+       GLOBAL_VAR(snc_slave_ddl_repl_subdomain_id),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_snc_ddl_repl_subdomain_id));
 
 static Sys_var_ulonglong Sys_gtid_seq_no(
        "gtid_seq_no",

@@ -2151,6 +2151,7 @@ rpl_group_info::reinit(Relay_log_info *rli)
   speculation= SPECULATE_NO;
   commit_orderer.reinit();
   *deadlock_info= 0;
+  main_domain_entry= NULL;
 }
 
 rpl_group_info::rpl_group_info(Relay_log_info *rli)

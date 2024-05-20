@@ -1282,6 +1282,19 @@ The following specify which files/extra groups are read (specified before remain
  --snc-lock-memory-target=# 
  Target amount of memory for the ServiceNow lock memory
  pool.
+ --snc-master-ddl-repl-subdomain-id=# 
+ Replicate some DDL statements in out-of-order alternate
+ domain which is running always behind the default domain.
+ The value of snc_master_ddl_repl_subdomain_id on master
+ should match the value of snc_slave_ddl_repl_subdomain_id
+ on slave. 0 = feature disabled.
+ --snc-slave-ddl-repl-subdomain-id=# 
+ Execute some replicated DDL statements in out-of-order
+ alternate domain which is running always behind the
+ default domain. The value of
+ snc_master_ddl_repl_subdomain_id on master should match
+ the value of snc_slave_ddl_repl_subdomain_id on slave. 0
+ = feature disabled.
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1779,6 +1792,8 @@ sn-order-by-limit-optimize-level 2
 sn-order-by-limit-row-threshold 300000
 snc-default-lock-expiration 120
 snc-lock-memory-target 1073741824
+snc-master-ddl-repl-subdomain-id 0
+snc-slave-ddl-repl-subdomain-id 0
 sort-buffer-size 2097152
 sql-mode STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 sql-safe-updates FALSE
