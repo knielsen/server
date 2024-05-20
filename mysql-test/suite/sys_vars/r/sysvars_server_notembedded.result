@@ -4382,6 +4382,26 @@ NUMERIC_BLOCK_SIZE	NULL
 ENUM_VALUE_LIST	NULL
 READ_ONLY	NO
 COMMAND_LINE_ARGUMENT	REQUIRED
+VARIABLE_NAME	SNC_MASTER_DDL_REPL_SUBDOMAIN_ID
+VARIABLE_SCOPE	GLOBAL
+VARIABLE_TYPE	INT UNSIGNED
+VARIABLE_COMMENT	Replicate some DDL statements in out-of-order alternate domain which is running always behind the default domain. The value of snc_master_ddl_repl_subdomain_id on master should match the value of snc_slave_ddl_repl_subdomain_id on slave. 0 = feature disabled
+NUMERIC_MIN_VALUE	0
+NUMERIC_MAX_VALUE	4294967295
+NUMERIC_BLOCK_SIZE	1
+ENUM_VALUE_LIST	NULL
+READ_ONLY	NO
+COMMAND_LINE_ARGUMENT	REQUIRED
+VARIABLE_NAME	SNC_SLAVE_DDL_REPL_SUBDOMAIN_ID
+VARIABLE_SCOPE	GLOBAL
+VARIABLE_TYPE	INT UNSIGNED
+VARIABLE_COMMENT	Execute some replicated DDL statements in out-of-order alternate domain which is running always behind the default domain. The value of snc_master_ddl_repl_subdomain_id on master should match the value of snc_slave_ddl_repl_subdomain_id on slave. 0 = feature disabled
+NUMERIC_MIN_VALUE	0
+NUMERIC_MAX_VALUE	4294967295
+NUMERIC_BLOCK_SIZE	1
+ENUM_VALUE_LIST	NULL
+READ_ONLY	NO
+COMMAND_LINE_ARGUMENT	REQUIRED
 VARIABLE_NAME	SOCKET
 VARIABLE_SCOPE	GLOBAL
 VARIABLE_TYPE	VARCHAR
