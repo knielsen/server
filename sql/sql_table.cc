@@ -12258,11 +12258,32 @@ end_inplace:
   }
   else if (!binlog_as_create_select)
   {
+    static constexpr ulonglong mask=
+      ALTER_ADD_NON_UNIQUE_NON_PRIM_INDEX |
+      ALTER_ADD_UNIQUE_INDEX |
+      ALTER_INDEX_ORDER;
     int tmp_error;
     thd->binlog_xid= thd->query_id;
     ddl_log_update_xid(&ddl_log_state, thd->binlog_xid);
-    tmp_error= write_bin_log_with_if_exists(thd, true, false, log_if_exists,
-                                            partial_alter);
+
+    if (!thd->slave_thread &&
+        (alter_info->flags & ~mask) == ALTER_ADD_INDEX)
+    {
+      uint32 current_gtid_domain_id= thd->variables.gtid_domain_id;
+      if (snc_master_ddl_repl_subdomain_id != 0)
+      {
+        thd->variables.gtid_domain_id= snc_master_ddl_repl_subdomain_id;
+      }
+
+      tmp_error= write_bin_log_with_if_exists(thd, true, false, log_if_exists,
+                                              partial_alter);
+      thd->variables.gtid_domain_id= current_gtid_domain_id;
+    }
+    else
+    {
+      tmp_error= write_bin_log_with_if_exists(thd, true, false, log_if_exists,
+                                              partial_alter);
+    }
     thd->binlog_xid= 0;
     if (tmp_error)
       goto err_cleanup;

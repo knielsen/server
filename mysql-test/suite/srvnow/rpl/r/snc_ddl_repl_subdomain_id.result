@@ -1,0 +1,126 @@
+include/master-slave.inc
+[connection master]
+connect  slaveA,127.0.0.1,root,,test,$SLAVE_MYPORT;
+connect  slaveB,127.0.0.1,root,,test,$SLAVE_MYPORT;
+connection slaveA;
+SET @old_snc_slave_ddl_repl_subdomain_id= @@GLOBAL.snc_slave_ddl_repl_subdomain_id;
+connection master;
+SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomain_id;
+connection slaveA;
+SET GLOBAL snc_slave_ddl_repl_subdomain_id=0;
+connection master;
+SET GLOBAL snc_master_ddl_repl_subdomain_id=0;
+CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb;
+CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb;
+connection slave;
+connection slaveA;
+STOP SLAVE;
+CHANGE MASTER TO master_use_gtid=slave_pos;
+LOCK TABLE t1 WRITE;
+connection master;
+ALTER TABLE t1 ADD INDEX i1 (id);
+INSERT INTO t2 VALUES (100,100);
+connection slaveB;
+START SLAVE;
+*** Waiting for t2 insert to be replicated...
+x
+x
+x
+connection slaveA;
+UNLOCK TABLES;
+connection slaveB;
+*** Insert into t2 replicated
+SELECT * FROM t2;
+id	val
+100	100
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ADD INDEX i1 (id)
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (100,100)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+connection slaveA;
+SELECT master_gtid_wait('0-1-4');
+master_gtid_wait('0-1-4')
+0
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ADD INDEX i1 (id)
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (100,100)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+DELETE FROM t2;
+connection slaveA;
+STOP SLAVE;
+LOCK TABLE t1 WRITE;
+SET GLOBAL snc_slave_ddl_repl_subdomain_id=7;
+connection master;
+SET GLOBAL snc_master_ddl_repl_subdomain_id=7;
+ALTER TABLE t1 ADD INDEX i2 (val);
+INSERT INTO t2 VALUES (200, 200);
+connection slaveB;
+START SLAVE;
+*** Waiting for t2 insert to be replicated...
+x
+*** Insert into t2 replicated
+SELECT * FROM t2;
+id	val
+200	200
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ADD INDEX i1 (id)
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (100,100)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (200, 200)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+connection slaveA;
+UNLOCK TABLES;
+SELECT master_gtid_wait('0-1-5,7-1-1');
+master_gtid_wait('0-1-5,7-1-1')
+0
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (id INT, val INT) ENGINE=Innodb
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ADD INDEX i1 (id)
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (100,100)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; DELETE FROM t2
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+slave-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (200, 200)
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
+slave-bin.000001	#	Gtid	#	#	GTID #-#-#
+slave-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ADD INDEX i2 (val)
+connection slaveA;
+SET GLOBAL snc_slave_ddl_repl_subdomain_id= @old_snc_slave_ddl_repl_subdomain_id;
+connection master;
+SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_end.inc
