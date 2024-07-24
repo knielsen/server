@@ -1,0 +1,9 @@
+CREATE USER 'nonkaaoid'@'localhost';
+ALTER USER 'nonkaaoid'@'localhost' REQUIRE SUBJECT '/CN=nonkaa';
+connect  con_nonkaaoid,localhost,nonkaaoid;
+SELECT 1;
+1
+1
+connection default;
+DROP USER 'nonkaaoid'@'localhost';
+disconnect con_nonkaaoid;

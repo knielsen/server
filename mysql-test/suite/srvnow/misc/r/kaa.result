@@ -1,0 +1,21 @@
+CREATE USER 'kaa4glide'@'localhost';
+ALTER USER 'kaa4glide'@'localhost' REQUIRE SUBJECT 'customer1<1.3.6.1.4.1.56079.2.2.2>';
+connect  con_kaa4glide,localhost,kaa4glide;
+SELECT 1;
+1
+1
+connection default;
+ALTER USER 'kaa4glide'@'localhost' REQUIRE SUBJECT 'customer1<1.3.6.1.4.1.56079.2.2.999>';
+connect(localhost,kaa4glide,,test,16000,SOCKIGNORED);
+connect  con_kaa4glide999,localhost,kaa4glide;
+ERROR 28000: Access denied for user 'kaa4glide'@'localhost' (using password: NO)
+ALTER USER 'kaa4glide'@'localhost' REQUIRE SUBJECT 'customer222<1.3.6.1.4.1.56079.2.2.2>';
+connect(localhost,kaa4glide,,test,16000,SOCKIGNORED);
+connect  con_kaa4glide222,localhost,kaa4glide;
+ERROR 28000: Access denied for user 'kaa4glide'@'localhost' (using password: NO)
+ALTER USER 'kaa4glide'@'localhost' REQUIRE SUBJECT 'customer1<1.3.6.1.4.1.56079.2.2.2>';
+connect  con_kaa4glideretest,localhost,kaa4glide;
+disconnect con_kaa4glide;
+disconnect con_kaa4glideretest;
+connection default;
+DROP USER 'kaa4glide'@'localhost';

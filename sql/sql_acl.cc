@@ -69,6 +69,7 @@ const uint max_dbname_length= 64;
 
 #include "sql_acl_getsort.ic"
 #endif
+#include <openssl/x509v3.h>
 
 static LEX_CSTRING native_password_plugin_name= {
   STRING_WITH_LEN("mysql_native_password")
@@ -13643,6 +13644,93 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
     if (acl_user->x509_subject[0])
     {
       char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+      EXTENDED_KEY_USAGE *eku = NULL;
+      if ((eku = (EXTENDED_KEY_USAGE *) X509_get_ext_d2i(cert, NID_ext_key_usage, NULL, NULL)) != NULL)
+      {
+        int i;
+        bool foundKaa = false;
+		const int kaaPrefixLen = sizeof("1.3.6.1.4.1.56079.2.2.") - 1;
+        for (i = 0; !foundKaa && i < sk_ASN1_OBJECT_num(eku); i++)
+        {
+          const int MAX_EKU_OID_LEN = 64;
+          ASN1_OBJECT *oid = (ASN1_OBJECT *)sk_ASN1_OBJECT_value(eku, i);
+          char szOid[MAX_EKU_OID_LEN + 1];
+          int r;
+          r = OBJ_obj2txt(szOid, sizeof(szOid), oid, 1);
+          if (r != -1 && r == (int)strlen(szOid))
+          {
+            // starts with 1.3.6.1.4.1.56079.2.2.
+            if (strncmp("1.3.6.1.4.1.56079.2.2.", szOid, kaaPrefixLen) == 0)
+            {
+              char *peer_cn = NULL;
+              while (true)
+              {
+                X509_NAME  *x509name = X509_get_subject_name(cert);
+                int len = X509_NAME_get_text_by_NID(x509name, NID_commonName, NULL, 0);
+                if (len == -1)
+                    break;
+
+                peer_cn = (char *)malloc(len + 1 + MAX_EKU_OID_LEN + 2);
+                if (peer_cn == NULL)
+                {
+                    sql_print_error("Fatal error: malloc return null during kaa certificate decoding. Skipping kaa decoding.");
+                    break;
+                }
+                r = X509_NAME_get_text_by_NID(x509name, NID_commonName, peer_cn,
+                                                len + 1);
+                peer_cn[len] = '\0';
+                if (r != len) // shouldn't happen
+                  break;
+
+                /*
+                 * Reject embedded NULLs in certificate common name to prevent
+                 * attacks like CVE-2009-4034.
+                 */
+                if (len != (int)strlen(peer_cn))
+                  break;
+
+                // truncate CN to instance name (i.e. stop at first period) if we get a Kaa EKU OID match
+                int ii;
+                for (ii = 0; ii < len; ii++) {
+                  if (peer_cn[ii] == '.') {
+                    peer_cn[ii] = '\0';
+                    break;
+                  }
+                }
+                // we encode the Kaa oid with < ... >, which should be invalid in instance names
+                // but just to be sure, we will fail if we see < (to avoid any string parsing error vulnerabilities)
+                bool invalidChar = false;
+                int peer_cn_len = (int)strlen(peer_cn);
+                for (ii = 0; ii < peer_cn_len; ii++) {
+                    if (peer_cn[ii] == '<') {
+                        invalidChar = true;
+                        break;
+                    }
+                }
+                if (invalidChar)
+                  break;
+
+                strcat(peer_cn, "<");
+                strcat(peer_cn, szOid);
+                strcat(peer_cn, ">");
+
+                free(ptr);
+                ptr = peer_cn;
+                peer_cn = NULL;
+                foundKaa = true;
+                break;
+              }
+              if (peer_cn != NULL)
+                free(peer_cn);
+            }
+          }
+        }
+      }
+      // this is not documented in the man pages as needing to be freed, but per
+      // https://github.com/openssl/openssl/issues/18665 and also examples in openssl
+      // code like https://github.com/openssl/openssl/blob/d4700c0b237c05315e3bf14fc416abcbdfe51ff2/crypto/cmp/cmp_asn.c#L502
+      if (eku != NULL)
+        EXTENDED_KEY_USAGE_free(eku);
       DBUG_PRINT("info", ("comparing subjects: '%s' and '%s'",
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))

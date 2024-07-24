@@ -1,0 +1,14 @@
+!include include/default_mysqld.cnf
+
+[mysqld.1]
+ssl_ca=@ENV.MYSQL_TEST_DIR/std_data/kaaca.cer
+ssl_cert=@ENV.MYSQL_TEST_DIR/std_data/kaamariadbcustomer1.cer
+ssl_key=@ENV.MYSQL_TEST_DIR/std_data/kaamariadbcustomer1.key
+
+
+[client]
+ssl-verify-server-cert=true
+ssl_ca=@ENV.MYSQL_TEST_DIR/std_data/kaaca.cer
+ssl_key=@ENV.MYSQL_TEST_DIR/std_data/kaaglidecustomer1.key
+ssl_cert=@ENV.MYSQL_TEST_DIR/std_data/kaaglidecustomer1.cer
+
