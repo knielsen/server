@@ -6019,6 +6019,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   ptr= show_table->field;
   show_table->use_all_columns();               // Required for default
   restore_record(show_table, s->default_values);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  ulong grant_priv;
+  check_access(thd,SELECT_ACL, db_name->str,
+                 &grant_priv, 0, 0, MY_TEST(tables->schema_table));
+#endif
 
   for (; (field= *ptr) ; ptr++)
   {
@@ -6040,10 +6045,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
-    check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
+    tables->grant.privilege = grant_priv;
     col_access= get_column_grant(thd, &tables->grant,
-                                 db_name->str, table_name->str,
+                                 db_name->  str, table_name->str,
                                  field->field_name.str) & COL_ACLS;
     if (!tables->schema_table && !col_access)
       continue;
