@@ -41,9 +41,6 @@ Created Apr 25, 2012 Vasil Dimov
 
 #include <vector>
 
-/** Minimum time interval between stats recalc for a given table */
-#define MIN_RECALC_INTERVAL	10 /* seconds */
-
 /** Event to wake up dict_stats_thread on dict_stats_recalc_pool_add()
 or shutdown. Not protected by any mutex. */
 os_event_t			dict_stats_event;
@@ -85,6 +82,8 @@ by background statistics gathering. */
 static recalc_pool_t		recalc_pool;
 /** Whether the global data structures have been initialized */
 static bool			stats_initialised;
+
+extern ulong snc_min_recalc_interval;
 
 /*****************************************************************//**
 Free the resources occupied by the recalc pool, called once during
@@ -416,7 +415,7 @@ dict_stats_process_entry_from_recalc_pool()
 	approach. */
 
 	if (difftime(time(NULL), table->stats_last_recalc)
-	    < MIN_RECALC_INTERVAL) {
+	    < snc_min_recalc_interval) {
 
 		/* Stats were (re)calculated not long ago. To avoid
 		too frequent stats updates we put back the table on
@@ -488,7 +487,7 @@ DECLARE_THREAD(dict_stats_thread)(void*)
 		in the list, the os_event_set() will be lost by the subsequent
 		os_event_reset(). */
 		os_event_wait_time(
-			dict_stats_event, MIN_RECALC_INTERVAL * 1000000);
+			dict_stats_event, snc_min_recalc_interval * 1000000);
 
 #ifdef UNIV_DEBUG
 		while (innodb_dict_stats_disabled_debug) {

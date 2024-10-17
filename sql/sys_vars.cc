@@ -3525,6 +3525,13 @@ static Sys_var_mybool Sys_snc_enable_mdev29833(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_ulong Sys_snc_min_recalc_interval(
+       "snc_min_recalc_interval",
+       "Minimum time interval between stats recalc for a given table (seconds).",
+       GLOBAL_VAR(snc_min_recalc_interval), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(10), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)

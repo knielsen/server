@@ -21,6 +21,7 @@ snc_default_lock_expiration	120
 snc_enable_mdev29833	OFF
 snc_lock_memory_target	1073741824
 snc_master_ddl_repl_subdomain_id	0
+snc_min_recalc_interval	10
 snc_slave_ddl_repl_subdomain_id	0
 select count(*) from task;
 count(*)

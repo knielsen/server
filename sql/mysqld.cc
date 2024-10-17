@@ -470,6 +470,7 @@ ulonglong snc_lock_memory_target;
 uint32 snc_master_ddl_repl_subdomain_id;
 uint32 snc_slave_ddl_repl_subdomain_id;
 my_bool snc_enable_mdev29833;
+ulong snc_min_recalc_interval;
 ulong open_files_limit, max_binlog_size;
 ulong slave_trans_retries;
 ulong slave_trans_retry_interval;
