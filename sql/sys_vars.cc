@@ -4068,6 +4068,13 @@ static Sys_var_ulonglong Sys_snc_lock_memory_target(
        ON_UPDATE(fix_snc_lock_memory_target));
 
 
+static Sys_var_ulong Sys_snc_min_recalc_interval(
+       "snc_min_recalc_interval",
+       "Minimum time interval between stats recalc for a given table (seconds)",
+       GLOBAL_VAR(snc_min_recalc_interval), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(10), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)

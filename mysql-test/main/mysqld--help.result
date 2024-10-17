@@ -1527,6 +1527,9 @@ The following specify which files/extra groups are read (specified before remain
  The value of snc_master_ddl_repl_subdomain_id on master
  should match the value of snc_slave_ddl_repl_subdomain_id
  on slave. 0 = feature disabled
+ --snc-min-recalc-interval=# 
+ Minimum time interval between stats recalc for a given
+ table (seconds)
  --snc-replication-trx-slow-commit=# 
  Log slave commits where the transaction has taken more
  than snc_replication_trx_slow_commit seconds to execute
@@ -2112,6 +2115,7 @@ snc-default-lock-expiration 120
 snc-do-not-binlog-empty-statement FALSE
 snc-lock-memory-target 1073741824
 snc-master-ddl-repl-subdomain-id 0
+snc-min-recalc-interval 10
 snc-replication-trx-slow-commit 31536000
 snc-slave-ddl-repl-subdomain-id 0
 snc-slave-max-synchronized-domain-id 64
