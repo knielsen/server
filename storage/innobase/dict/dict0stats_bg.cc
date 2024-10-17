@@ -40,8 +40,6 @@ Created Apr 25, 2012 Vasil Dimov
 
 #include <vector>
 
-/** Minimum time interval between stats recalc for a given table */
-#define MIN_RECALC_INTERVAL	10 /* seconds */
 static void dict_stats_schedule(int ms);
 
 /** Protects recalc_pool */
@@ -69,6 +67,8 @@ static recalc_pool_t		recalc_pool;
 static bool			stats_initialised;
 
 static THD *dict_stats_thd;
+
+extern ulong snc_min_recalc_interval;
 
 /*****************************************************************//**
 Free the resources occupied by the recalc pool, called once during
@@ -327,7 +327,8 @@ invalid_table_id:
   be replaced with something else, though a time interval is the natural
   approach. */
   const bool update_now=
-    difftime(time(nullptr), table->stats_last_recalc) >= MIN_RECALC_INTERVAL;
+    difftime(time(nullptr), table->stats_last_recalc) >=
+    (double)snc_min_recalc_interval;
 
   const dberr_t err= update_now
     ? dict_stats_update_persistent_try(nullptr, table)
@@ -380,7 +381,7 @@ static void dict_stats_func(void*)
   innobase_reset_background_thd(dict_stats_thd);
   set_current_thd(nullptr);
   if (!is_recalc_pool_empty())
-    dict_stats_schedule(MIN_RECALC_INTERVAL * 1000);
+    dict_stats_schedule((int)snc_min_recalc_interval * 1000);
 }
 
 
