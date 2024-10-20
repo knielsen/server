@@ -1475,6 +1475,8 @@ struct transaction_participant
       @retval 0 if no system-versioned data was affected by the transaction
   */
   ulonglong (*prepare_commit_versioned)(THD *thd, ulonglong *trx_id);
+
+  bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
 };
 
 /*
@@ -1545,7 +1547,6 @@ struct handlerton : public transaction_participant
   void (*disable_internal_writes)(bool disable);
 
   bool (*flush_logs)(handlerton *hton);
-  bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
   uint (*partition_flags)();
   alter_table_operations (*alter_table_flags)(alter_table_operations flags);
 
