@@ -44,6 +44,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "fsp0file.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "ha_innodb.h"
 #include "lock0lock.h"
 #include "log0log.h"
 #include "pars0pars.h"
@@ -2460,9 +2461,14 @@ rollback:
   std::vector<pfs_os_file_t> deleted;
   trx->commit(deleted);
   const auto space_id= table->space_id;
+  const bool early_unlock=
+    ha_innobase::is_snc_quick_drop_table_enabled(trx->mysql_thd);
+  if (early_unlock)
+    row_mysql_unlock_data_dictionary(trx);
   pfs_os_file_t d= fil_delete_tablespace(space_id);
   DBUG_EXECUTE_IF("ib_discard_after_commit_crash", DBUG_SUICIDE(););
-  row_mysql_unlock_data_dictionary(trx);
+  if (!early_unlock)
+    row_mysql_unlock_data_dictionary(trx);
 
   if (d != OS_FILE_CLOSED)
     os_file_close(d);

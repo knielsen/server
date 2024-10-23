@@ -427,6 +427,9 @@ public:
 	/** @return whether innodb_strict_mode is active */
 	static bool is_innodb_strict_mode(THD* thd);
 
+	/** @return whether snc_quick_drop_tables is enabled */
+	static bool is_snc_quick_drop_table_enabled(THD* thd);
+
 	/** @return whether innodb_strict_mode is active */
 	bool is_innodb_strict_mode()
 	{ return is_innodb_strict_mode(m_user_thd); }

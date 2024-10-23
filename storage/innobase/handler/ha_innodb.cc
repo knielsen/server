@@ -889,6 +889,10 @@ static MYSQL_THDVAR_STR(tmpdir,
   "Directory for temporary non-tablespace files",
   innodb_tmpdir_validate, NULL, NULL);
 
+static MYSQL_THDVAR_BOOL(snc_quick_drop_table, PLUGIN_VAR_OPCMDARG,
+  "Enable workaround for query slowdown during table drop",
+  NULL, NULL, FALSE);
+
 static size_t truncated_status_writes;
 
 static SHOW_VAR innodb_status_variables[]= {
@@ -11562,6 +11566,12 @@ bool ha_innobase::is_innodb_strict_mode(THD *thd)
   return THDVAR(thd, strict_mode);
 }
 
+/** @return whether snc_quick_drop_tables is enabled */
+bool ha_innobase::is_snc_quick_drop_table_enabled(THD *thd)
+{
+  return THDVAR(thd, snc_quick_drop_table);
+}
+
 /** Determine InnoDB table flags.
 If strict_mode=OFF, this will adjust the flags to what should be assumed.
 @retval true on success
@@ -20071,6 +20081,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(background_thread),
   MYSQL_SYSVAR(encrypt_temporary_tables),
   MYSQL_SYSVAR(truncate_temporary_tablespace_now),
+  MYSQL_SYSVAR(snc_quick_drop_table),
 
   NULL
 };

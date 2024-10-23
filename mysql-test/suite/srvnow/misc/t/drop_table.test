@@ -1,0 +1,10 @@
+--source include/have_innodb.inc
+let $n = 10;
+while ($n)
+{
+  create table t1(n int) engine=innodb;
+  insert into t1 values (1),(2),(3);
+  select * from t1;
+  drop table t1;
+  dec $n;
+}
