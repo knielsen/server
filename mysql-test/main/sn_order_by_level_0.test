@@ -20,7 +20,7 @@ use glide;
 
 --enable_result_log
 --enable_query_log
-show variables like '%sn%';
+show variables like 'sn_order_by_%';
 select count(*) from task;
 
 echo # Should select task_ref2 -- cos we are ignoring order by index;

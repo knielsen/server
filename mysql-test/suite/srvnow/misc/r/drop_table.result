@@ -1,0 +1,80 @@
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;
+create table t1(n int) engine=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+n
+1
+2
+3
+drop table t1;

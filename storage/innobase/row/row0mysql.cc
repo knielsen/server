@@ -46,6 +46,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "fsp0file.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "ha_innodb.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
@@ -3781,7 +3782,14 @@ do_drop:
 		ut_ad(!filepath);
 
 		if (space->id != TRX_SYS_SPACE) {
+			const bool unlock_needed= locked_dictionary && ha_innobase::is_snc_quick_drop_table_enabled(trx->mysql_thd);
+			if (unlock_needed)
+				row_mysql_unlock_data_dictionary(trx);
+
 			err = fil_delete_tablespace(space->id);
+
+			if (unlock_needed)
+				row_mysql_lock_data_dictionary(trx);
 		}
 		break;
 
