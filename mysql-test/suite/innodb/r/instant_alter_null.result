@@ -1,14 +1,14 @@
 create table t (a int NOT NULL) engine=innodb row_format=   compressed;
 alter table t modify a int NULL, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_UNSUPPORTED; Lock reason: none; Handler flags: 0x10000000000500; More: none. Try ALGORITHM=INPLACE
 drop table t;
 create table t (a int NOT NULL) engine=innodb row_format=   dynamic;
 alter table t modify a int NULL, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_NULLABLE_NOT_REDUNDANT; Lock reason: none; Handler flags: 0x10000000000500; More: none. Try ALGORITHM=INPLACE
 drop table t;
 create table t (a int NOT NULL) engine=innodb row_format=   compact;
 alter table t modify a int NULL, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_NULLABLE_NOT_REDUNDANT; Lock reason: none; Handler flags: 0x10000000000500; More: none. Try ALGORITHM=INPLACE
 drop table t;
 create table t (
 id int primary key,

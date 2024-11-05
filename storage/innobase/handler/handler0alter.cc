@@ -1130,7 +1130,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	MY_ATTRIBUTE((nonnull, warn_unused_result, malloc))
 	inline index_def_t*
 	create_key_defs(
-		const Alter_inplace_info*	ha_alter_info,
+		Alter_inplace_info*		ha_alter_info,
 				/*!< in: alter operation */
 		const TABLE*			altered_table,
 				/*!< in: MySQL table that is being altered */
@@ -1364,7 +1364,7 @@ innobase_spatial_exist(
 @param[in] table		metadata before ALTER TABLE
 @return whether it is mandatory to rebuild the table */
 static bool alter_options_need_rebuild(
-	const Alter_inplace_info*	ha_alter_info,
+	Alter_inplace_info*		ha_alter_info,
 	const TABLE*			table)
 {
 	DBUG_ASSERT(ha_alter_info->handler_flags & ALTER_OPTIONS);
@@ -1378,6 +1378,14 @@ static bool alter_options_need_rebuild(
 		the interpretation of thse attributes depends on
 		InnoDB parameters. That is why we for now always
 		require a rebuild when these attributes are specified.) */
+		if (ha_alter_info->create_info->used_fields &
+			HA_CREATE_USED_ROW_FORMAT) {
+			ha_alter_info->rebuild_info.reason =
+				Rebuild_reason::ROW_FORMAT;
+		} else {
+			ha_alter_info->rebuild_info.reason =
+				Rebuild_reason::KEY_BLOCK_SIZE;
+		}
 		return true;
 	}
 
@@ -1387,9 +1395,19 @@ static bool alter_options_need_rebuild(
 
 	/* Allow an instant change to enable page_compressed,
 	and any change of page_compression_level. */
-	if ((!alt_opt.page_compressed && opt.page_compressed)
-	    || alt_opt.encryption != opt.encryption
-	    || alt_opt.encryption_key_id != opt.encryption_key_id) {
+	if ((!alt_opt.page_compressed && opt.page_compressed)) {
+		ha_alter_info->rebuild_info.reason =
+			Rebuild_reason::CHANGED_COMPRESSION;
+		return true;
+	}
+	if (alt_opt.encryption != opt.encryption) {
+		ha_alter_info->rebuild_info.reason =
+			Rebuild_reason::CHANGED_ENCRYPTION;
+		return true;
+	}
+	if (alt_opt.encryption_key_id != opt.encryption_key_id) {
+		ha_alter_info->rebuild_info.reason =
+			Rebuild_reason::CHANGED_ENCRYPTION_KEY;
 		return(true);
 	}
 
@@ -1404,7 +1422,7 @@ static bool alter_options_need_rebuild(
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 bool
 innobase_need_rebuild(
-	const Alter_inplace_info*	ha_alter_info,
+	Alter_inplace_info*		ha_alter_info,
 	const TABLE*			table)
 {
 	if ((ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE
@@ -1414,7 +1432,12 @@ innobase_need_rebuild(
 		return alter_options_need_rebuild(ha_alter_info, table);
 	}
 
-	return !!(ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD);
+	if (ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD) {
+		ha_alter_info->rebuild_info.reason = Rebuild_reason::HANDLER_FLAGS;
+		return true;
+	}
+
+	return false;
 }
 
 /** Check if virtual column in old and new table are in order, excluding
@@ -1521,7 +1544,7 @@ static
 bool
 instant_alter_column_possible(
 	const dict_table_t&		ib_table,
-	const Alter_inplace_info*	ha_alter_info,
+	Alter_inplace_info*		ha_alter_info,
 	const TABLE*			table,
 	const TABLE*			altered_table,
 	bool				strict)
@@ -1534,8 +1557,11 @@ instant_alter_column_possible(
 	    & (ALTER_STORED_COLUMN_ORDER | ALTER_DROP_STORED_COLUMN
 	       | ALTER_ADD_STORED_BASE_COLUMN)) {
 #if 1 // MDEV-17459: adjust fts_fetch_doc_from_rec() and friends; remove this
-		if (ib_table.fts || innobase_fulltext_exist(altered_table))
+		if (ib_table.fts || innobase_fulltext_exist(altered_table)) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_FTS;
 			return false;
+		}
 #endif
 #if 1 // MDEV-17468: fix bugs with indexed virtual columns & remove this
 		for (const dict_index_t* index = ib_table.indexes.start;
@@ -1543,6 +1569,8 @@ instant_alter_column_possible(
 			if (index->has_virtual()) {
 				ut_ad(ib_table.n_v_cols
 				      || index->is_corrupted());
+				ha_alter_info->rebuild_info.copy_reason =
+					Rebuild_reason::COPY_VCOL;
 				return false;
 			}
 		}
@@ -1618,6 +1646,8 @@ instant_alter_column_possible(
 		ulint n_fields = pk->n_fields + n_add;
 
 		if (n_fields >= REC_MAX_N_USER_FIELDS + DATA_N_SYS_COLS) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_NFIELDS;
 			return false;
 		}
 
@@ -1709,17 +1739,23 @@ set_max_size:
 
 		if (page_zip_rec_needs_ext(min_size, ib_table.not_redundant(),
 					   0, 0)) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_ZIP;
 			return false;
 		}
 
 		if (strict && page_zip_rec_needs_ext(max_size,
 						     ib_table.not_redundant(),
 						     0, 0)) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_ZIP;
 			return false;
 		}
 	}
 	// Making table system-versioned instantly is not implemented yet.
 	if (ha_alter_info->handler_flags & ALTER_ADD_SYSTEM_VERSIONING) {
+		ha_alter_info->rebuild_info.copy_reason =
+			Rebuild_reason::COPY_SYSTEM_VERSIONING;
 		return false;
 	}
 
@@ -1737,13 +1773,19 @@ set_max_size:
 		allow ALGORITHM=INSTANT, except if some requested
 		operation requires that the table be rebuilt. */
 		if (flags & INNOBASE_ALTER_REBUILD) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_HANDLER_FLAGS;
 			return false;
 		}
 		if ((flags & ALTER_OPTIONS)
 		    && alter_options_need_rebuild(ha_alter_info, table)) {
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_NEED_REBUID;
 			return false;
 		}
 	} else if (!ib_table.supports_instant()) {
+		ha_alter_info->rebuild_info.copy_reason =
+			Rebuild_reason::COPY_UNSUPPORTED;
 		return false;
 	}
 
@@ -1771,11 +1813,15 @@ set_max_size:
 	       & ~ALTER_ADD_STORED_BASE_COLUMN
 	       & ~ALTER_COLUMN_NULLABLE
 	       & ~ALTER_OPTIONS)) {
+		ha_alter_info->rebuild_info.copy_reason =
+			Rebuild_reason::COPY_HANDLER_FLAGS2;
 		return false;
 	}
 
 	if ((ha_alter_info->handler_flags & ALTER_OPTIONS)
 	    && alter_options_need_rebuild(ha_alter_info, table)) {
+		ha_alter_info->rebuild_info.copy_reason =
+			Rebuild_reason::COPY_NEED_REBUID;
 		return false;
 	}
 
@@ -1783,12 +1829,16 @@ set_max_size:
 		if (ib_table.not_redundant()) {
 			/* Instantaneous removal of NOT NULL is
 			only supported for ROW_FORMAT=REDUNDANT. */
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_NULLABLE_NOT_REDUNDANT;
 			return false;
 		}
 		if (ib_table.fts_doc_id_index
 		    && !innobase_fulltext_exist(altered_table)) {
 			/* Removing hidden FTS_DOC_ID_INDEX(FTS_DOC_ID)
 			requires that the table be rebuilt. */
+			ha_alter_info->rebuild_info.copy_reason =
+				Rebuild_reason::COPY_NULLABLE_DROP_FTS;
 			return false;
 		}
 
@@ -1812,6 +1862,8 @@ set_max_size:
 			Ensure that it is not a clustered index key. */
 			for (auto i = pk->n_uniq; i--; ) {
 				if (pk->fields[i].col == col) {
+					ha_alter_info->rebuild_info.copy_reason =
+						Rebuild_reason::COPY_NULLABLE_CHANGED;
 					return false;
 				}
 			}
@@ -2079,6 +2131,11 @@ ha_innobase::check_if_supported_inplace_alter(
 		    & ALTER_STORED_COLUMN_TYPE) {
 			ha_alter_info->unsupported_reason = my_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+		} else {
+			ha_alter_info->set_unsupported_reason(
+				m_user_thd,
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FLAGS,
+				ha_alter_info->handler_flags); // TODO: parse handler_flags
 		}
 
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -2113,6 +2170,15 @@ innodb_instant_alter_column_allowed_reason:
 					|= ALTER_RECREATE_TABLE;
 				ha_alter_info->unsupported_reason
 					= reason_rebuild;
+				if (m_prebuilt->table->instant ||
+					m_prebuilt->table->is_instant()) {
+					ha_alter_info->rebuild_info.reason =
+						Rebuild_reason::INSTANT;
+				} else {
+					ha_alter_info->rebuild_info.reason =
+						Rebuild_reason::FLAGS;
+				}
+
 			}
 		}
 		break;
@@ -2204,12 +2270,18 @@ innodb_instant_alter_column_allowed_reason:
 
 		if (col->mtype != get_innobase_type_from_mysql_type(
 			    &unsigned_flag, field)) {
-
+			ha_alter_info->set_unsupported_reason(
+				m_user_thd,
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FIELD_TYPE,
+				field->field_name.str);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
 
 		if ((col->prtype & DATA_UNSIGNED) != unsigned_flag) {
-
+			ha_alter_info->set_unsupported_reason(
+				m_user_thd,
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_UNSIGNED,
+				field->field_name.str);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
 	}
@@ -2323,6 +2395,10 @@ innodb_instant_alter_column_allowed_reason:
 
 				online = false;
 				need_rebuild = true;
+				ha_alter_info->rebuild_info.reason=
+					Rebuild_reason::AUTO_INC;
+				ha_alter_info->rebuild_info.lock_reason=
+					Rebuild_reason::LOCK_AUTO_INC;
 			}
 
 			if (!key_part->field->stored_in_db()) {
@@ -2344,6 +2420,8 @@ innodb_instant_alter_column_allowed_reason:
 				}
 
 				online = false;
+				ha_alter_info->rebuild_info.lock_reason=
+					Rebuild_reason::LOCK_VCOL;
 			}
 		}
 	}
@@ -2535,12 +2613,15 @@ cannot_create_many_fulltext_index:
 			/* Either LOCK=NONE was not requested, or we already
 			gave specific reason to refuse it. */
 		} else if (fulltext_indexes) {
+			ha_alter_info->rebuild_info.lock_reason = Rebuild_reason::LOCK_FTS;
 			ha_alter_info->unsupported_reason = my_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
 		} else if (innobase_spatial_exist(altered_table)) {
+			ha_alter_info->rebuild_info.lock_reason = Rebuild_reason::LOCK_GIS;
 			ha_alter_info->unsupported_reason = my_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
 		} else {
+			ha_alter_info->rebuild_info.lock_reason = Rebuild_reason::LOCK_VCOL;
 			/* MDEV-14341 FIXME: Remove this limitation. */
 			ha_alter_info->unsupported_reason =
 				"online rebuild with indexed virtual columns";
@@ -2584,6 +2665,8 @@ cannot_create_many_fulltext_index:
 				}
 
 				online = false;
+				ha_alter_info->rebuild_info.lock_reason=
+					Rebuild_reason::LOCK_FTS;
 
 				/* Full text search index exists, check
 				whether the table already has DOC ID column.
@@ -2608,6 +2691,8 @@ cannot_create_many_fulltext_index:
 				}
 
 				online = false;
+				ha_alter_info->rebuild_info.lock_reason=
+					Rebuild_reason::LOCK_GIS;
 			}
 		}
 	}
@@ -2621,10 +2706,16 @@ cannot_create_many_fulltext_index:
 		}
 
 		online = false;
+		ha_alter_info->rebuild_info.lock_reason=
+			Rebuild_reason::LOCK_SYSTEM_VERSIONING;
 	}
 
 	if ((need_rebuild && !supports_instant) || fts_need_rebuild) {
 		ha_alter_info->handler_flags |= ALTER_RECREATE_TABLE;
+		if (fts_need_rebuild && !ha_alter_info->rebuild_info.reason) {
+			ha_alter_info->rebuild_info.reason= Rebuild_reason::FTS;
+		}
+		ha_alter_info->set_rebuild_unsupported_reason(m_user_thd);
 		DBUG_RETURN(online
 			    ? HA_ALTER_INPLACE_COPY_NO_LOCK
 			    : HA_ALTER_INPLACE_COPY_LOCK);
@@ -2637,6 +2728,12 @@ cannot_create_many_fulltext_index:
 		ha_alter_info->unsupported_reason = "DROP INDEX";
 	}
 
+	if (ha_alter_info->rebuild_info.reason) {
+		ha_alter_info->set_rebuild_unsupported_reason(m_user_thd);
+	} else if (!online) {
+		ut_ad(ha_alter_info->rebuild_info.lock_reason);
+		ha_alter_info->set_lock_unsupported_reason(m_user_thd);
+	}
 	DBUG_RETURN(online
 		    ? HA_ALTER_INPLACE_NOCOPY_NO_LOCK
 		    : HA_ALTER_INPLACE_NOCOPY_LOCK);
@@ -3917,7 +4014,7 @@ ENDIF
 MY_ATTRIBUTE((nonnull, warn_unused_result, malloc))
 inline index_def_t*
 ha_innobase_inplace_ctx::create_key_defs(
-	const Alter_inplace_info*	ha_alter_info,
+	Alter_inplace_info*	ha_alter_info,
 			/*!< in: alter operation */
 	const TABLE*			altered_table,
 			/*!< in: MySQL table that is being altered */

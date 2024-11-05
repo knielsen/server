@@ -7,7 +7,7 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Not implemented for sys
 alter table t add system versioning, lock=shared;
 alter table t add column b int, change column a a int without system versioning, lock=none;
 alter table t drop system versioning, lock=none;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Not implemented for system-versioned operations. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_SYSTEM_VERSIONING; Handler flags: 0x4200100000400; More: Not implemented for system-versioned operations. Try LOCK=SHARED
 alter table t drop system versioning, algorithm=inplace;
 create or replace table t (
 a int, b int,
@@ -60,7 +60,7 @@ alter table t2
 change a a int with system versioning,
 add primary key pk (a),
 algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x20008040000500; More: none. Try ALGORITHM=INPLACE
 # with rebuild
 alter table t2
 change a a int with system versioning,
@@ -127,7 +127,7 @@ alter table t drop column b, algorithm=instant;
 alter table t add index idx(a), lock=none;
 alter table t drop column s, drop column e;
 alter table t drop system versioning, lock=none;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Not implemented for system-versioned operations. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_SYSTEM_VERSIONING; Handler flags: 0x200100000400; More: Not implemented for system-versioned operations. Try LOCK=SHARED
 #
 # MDEV-17697 Broken versioning info after instant drop column
 #

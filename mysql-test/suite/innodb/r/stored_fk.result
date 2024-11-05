@@ -40,7 +40,7 @@ drop table t2;
 create table t2(f1 int not null,
 foreign key(f1) references t1(f1) on update cascade)engine=innodb;
 alter table t2 add column f2 int as (f1) stored, algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Handler flags: 0x80000000000. Try ALGORITHM=COPY
 drop table t2, t1;
 #
 # BUG#26731689 FK ON TABLE WITH GENERATED COLS: ASSERTION POS < N_DEF

@@ -33,7 +33,7 @@ drop table t2;
 --echo # adding stored column via online alter.
 create table t2(f1 int not null,
 		foreign key(f1) references t1(f1) on update cascade)engine=innodb;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t2 add column f2 int as (f1) stored, algorithm=inplace;
 drop table t2, t1;
 

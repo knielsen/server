@@ -415,7 +415,7 @@ CREATE TABLE t1o LIKE t1;
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: FTS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_FTS; Handler flags: 0x400800000520; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=SHARED;
@@ -439,17 +439,17 @@ tt	CREATE TABLE `tt` (
   FULLTEXT KEY `ct` (`ct`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE tt ADD COLUMN c CHAR(1) NOT NULL FIRST, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x4040000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE tt ADD COLUMN c CHAR(1) NOT NULL, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x40000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 CREATE TABLE tu (
 pk INT PRIMARY KEY, FTS_DOC_ID BIGINT UNSIGNED NOT NULL, t TEXT,
 FULLTEXT INDEX(t)
 ) ENGINE=InnoDB;
 ALTER TABLE tu ADD COLUMN c CHAR(1) NOT NULL FIRST, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x4040000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE tu ADD COLUMN c CHAR(1) NOT NULL, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x40000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 DROP TABLE tu;
 CREATE TABLE tv (
 pk INT PRIMARY KEY, FTS_DOC_ID BIGINT UNSIGNED NOT NULL, t TEXT,
@@ -457,9 +457,9 @@ UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID),
 FULLTEXT INDEX(t)
 ) ENGINE=InnoDB;
 ALTER TABLE tv ADD COLUMN c CHAR(1) NOT NULL FIRST, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x4040000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE tv ADD COLUMN c CHAR(1) NOT NULL, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_FTS; Lock reason: LOCK_FTS; Handler flags: 0x40000000400; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 DROP TABLE tv;
 ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=COPY;
 ERROR 42000: Incorrect column name 'dB_row_Id'

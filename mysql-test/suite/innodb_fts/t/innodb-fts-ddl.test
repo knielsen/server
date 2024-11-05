@@ -19,7 +19,7 @@ INSERT INTO fts_test (title,body) VALUES
 	('MySQL Security','When configured properly, MySQL ...');
 
 # Table does rebuild when fts index builds for the first time
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE fts_test ADD FULLTEXT `idx` (title, body), ALGORITHM=NOCOPY;
 
 # Create the FTS index

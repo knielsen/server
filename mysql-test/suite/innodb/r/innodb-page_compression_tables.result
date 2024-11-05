@@ -90,10 +90,10 @@ count(*)
 5000
 set global innodb_compression_algorithm = 0;
 alter table innodb_compact page_compressed=DEFAULT, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: CHANGED_COMPRESSION; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x480; More: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
 alter table innodb_compact page_compressed=DEFAULT;
 alter table innodb_dynamic page_compressed=DEFAULT, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: CHANGED_COMPRESSION; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x480; More: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
 alter table innodb_dynamic page_compressed=DEFAULT;
 show create table innodb_compact;
 Table	Create Table

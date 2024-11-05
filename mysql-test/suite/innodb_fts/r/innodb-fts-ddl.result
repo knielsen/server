@@ -11,7 +11,7 @@ INSERT INTO fts_test (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
 ALTER TABLE fts_test ADD FULLTEXT `idx` (title, body), ALGORITHM=NOCOPY;
-ERROR 0A000: ALGORITHM=NOCOPY is not supported for this operation. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=NOCOPY is not supported. Reason: FTS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_FTS; Handler flags: 0x800000400; More: none. Try ALGORITHM=INPLACE
 ALTER TABLE fts_test ADD FULLTEXT `idx` (title, body), ALGORITHM=INPLACE;
 SELECT * FROM fts_test WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
@@ -76,10 +76,10 @@ INSERT INTO fts_test (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: LOCK_FTS; Handler flags: 0x800000000; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE fts_test ADD FULLTEXT `idx` (title, body), ALGORITHM=NOCOPY;
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: ROW_FORMAT; Copy reason: COPY_HANDLER_FLAGS; Lock reason: LOCK_FTS; Handler flags: 0x480; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
 SELECT * FROM fts_test WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);

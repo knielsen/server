@@ -68,7 +68,7 @@ alter table various_cases
   change b b varchar(150) as (a) virtual,
   algorithm=inplace;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table various_cases
   change c c char(150) as (a) persistent,
   algorithm=inplace;

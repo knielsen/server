@@ -1,17 +1,17 @@
 --source include/have_innodb.inc
 
 create table t (a int NOT NULL) engine=innodb row_format=   compressed;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t modify a int NULL, algorithm=instant;
 drop table t;
 
 create table t (a int NOT NULL) engine=innodb row_format=   dynamic;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t modify a int NULL, algorithm=instant;
 drop table t;
 
 create table t (a int NOT NULL) engine=innodb row_format=   compact;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t modify a int NULL, algorithm=instant;
 drop table t;
 

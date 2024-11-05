@@ -67,9 +67,9 @@ info: Records: 3  Duplicates: 0  Warnings: 0
 SET ALTER_ALGORITHM=INSTANT;
 affected rows: 0
 ALTER TABLE t1 DROP COLUMN col1;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x204000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 DROP COLUMN col1, ALGORITHM=NOCOPY;
-ERROR 0A000: ALGORITHM=NOCOPY is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=NOCOPY is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x204000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 DROP COLUMN col1, ALGORITHM=DEFAULT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0

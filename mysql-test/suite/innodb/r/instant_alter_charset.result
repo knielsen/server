@@ -65,7 +65,7 @@ algorithm=inplace;
 alter table various_cases
 change c c char(150) as (a) persistent,
 algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Handler flags: 0x480000000000100. Try ALGORITHM=COPY
 alter table various_cases
 modify a char(150) charset utf8mb4,
 algorithm=instant;

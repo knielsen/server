@@ -7949,3 +7949,13 @@ ER_JSON_INVALID_VALUE_FOR_KEYWORD
         eng "Invalid value for keyword %s"
 ER_JSON_SCHEMA_KEYWORD_UNSUPPORTED
         eng "%s keyword is not supported"
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FIELD_TYPE
+  eng "Field type changed for %`s"
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_UNSIGNED
+  eng "Field unsigned flag changed for %`s"
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FLAGS
+  eng "Handler flags: 0x%llx"
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_REBUILD
+  eng "%s; Copy reason: %s; Lock reason: %s; Handler flags: 0x%llx; More: %s"
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_LOCK
+  eng "%s; Handler flags: 0x%llx; More: %s"

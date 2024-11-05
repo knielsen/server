@@ -71,7 +71,7 @@ alter table t1
   change a a int without system versioning,
   algorithm=instant;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t2
   change a a int with system versioning,
   add primary key pk (a),

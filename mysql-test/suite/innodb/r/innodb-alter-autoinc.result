@@ -6,7 +6,7 @@ ALTER TABLE t1 ADD PRIMARY KEY(a);
 SET @@sql_mode = @old_sql_mode;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD id INT AUTO_INCREMENT PRIMARY KEY,
 LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Adding an auto-increment column requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: AUTO_INC; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_AUTO_INC; Handler flags: 0x58000000400; More: Adding an auto-increment column requires a lock. Try LOCK=SHARED
 ALTER TABLE t1 ADD id INT AUTO_INCREMENT;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 ALTER TABLE t1 ADD id INT AUTO_INCREMENT, ADD INDEX(a, id);
@@ -51,7 +51,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP PRIMARY KEY, ADD id INT AUTO_INCREMENT PRIMARY KEY,
 DROP COLUMN id, AUTO_INCREMENT = 42, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Adding an auto-increment column requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: AUTO_INC; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_AUTO_INC; Handler flags: 0x259800000480; More: Adding an auto-increment column requires a lock. Try LOCK=SHARED
 ALTER TABLE t1 DROP PRIMARY KEY, ADD id INT AUTO_INCREMENT PRIMARY KEY,
 DROP COLUMN id, AUTO_INCREMENT = 42, ALGORITHM=INPLACE;
 SELECT * FROM t1;

@@ -532,34 +532,34 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 INSERT INTO t1 SET a=42;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 MODIFY a INT DEFAULT NULL, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP b, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x200000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4040000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_drop_reorder;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -1450,34 +1450,34 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 INSERT INTO t1 SET a=42;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 MODIFY a INT DEFAULT NULL, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP b, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x200000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4040000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_drop_reorder;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -2368,34 +2368,34 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 SET a=42;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 ADD b TEXT, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = never;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 MODIFY a INT DEFAULT NULL, ALGORITHM=INSTANT;
 ALTER TABLE t1 DROP b, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x200000000400; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_alter_column_allowed=never. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4000000000500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x4040000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 SET GLOBAL innodb_instant_alter_column_allowed = add_drop_reorder;
 ALTER TABLE t1 MODIFY b TEXT FIRST, ALGORITHM=INSTANT;
 SET GLOBAL innodb_instant_alter_column_allowed = add_last;
 ALTER TABLE t1 MODIFY a INT DEFAULT 1, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 ADD d TEXT AFTER a, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: none; Handler flags: 0x40000000400; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x500; More: innodb_instant_atler_column_allowed=add_last. Try ALGORITHM=INPLACE
 ALTER TABLE t1 MODIFY a INT DEFAULT 0;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -2817,7 +2817,7 @@ disconnect analyze;
 #
 CREATE TABLE t1(a INT PRIMARY KEY, b INT UNIQUE) ENGINE=InnoDB;
 ALTER TABLE t1 DROP b, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: DROP INDEX. Try ALGORITHM=NOCOPY
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: HANDLER_FLAGS; Copy reason: none; Lock reason: none; Handler flags: 0x204000000000; More: DROP INDEX. Try ALGORITHM=NOCOPY
 ALTER TABLE t1 DROP b, ALGORITHM=NOCOPY;
 DROP TABLE t1;
 SELECT variable_value-@old_instant instants

@@ -46,6 +46,8 @@
 #include "sql_sequence.h"
 #include "mem_root_array.h"
 
+#include <map>
+
 class Alter_info;
 class Virtual_column_info;
 class sequence_definition;
@@ -2329,6 +2331,92 @@ public:
 };
 
 
+struct Rebuild_reason
+{
+  enum rebuild_reason_enum
+  {
+    UNDEFINED = 0,
+    INSTANT,
+    FLAGS,
+    ROW_FORMAT,
+    KEY_BLOCK_SIZE,
+    CHANGED_COMPRESSION,
+    CHANGED_ENCRYPTION,
+    CHANGED_ENCRYPTION_KEY,
+    HANDLER_FLAGS,
+    AUTO_INC,
+    FTS
+  };
+  enum copy_reason_enum
+  {
+    COPY_UNDEFINED= 0,
+    COPY_FTS,
+    COPY_VCOL,
+    COPY_NFIELDS,
+    COPY_ZIP,
+    COPY_SYSTEM_VERSIONING,
+    COPY_HANDLER_FLAGS,
+    COPY_HANDLER_FLAGS2,
+    COPY_NEED_REBUID,
+    COPY_UNSUPPORTED,
+    COPY_NULLABLE_NOT_REDUNDANT,
+    COPY_NULLABLE_DROP_FTS,
+    COPY_NULLABLE_CHANGED
+  };
+  enum lock_reason_enum
+  {
+    LOCK_UNDEFINED= 0,
+    LOCK_FTS,
+    LOCK_GIS,
+    LOCK_VCOL,
+    LOCK_AUTO_INC,
+    LOCK_SYSTEM_VERSIONING
+  };
+
+  typedef std::map<rebuild_reason_enum, const char *> rebuild_reason_map;
+  typedef std::map<copy_reason_enum, const char *> copy_reason_map;
+  typedef std::map<lock_reason_enum, const char *> lock_reason_map;
+
+  static rebuild_reason_map rebuild_reason_names;
+  static copy_reason_map copy_reason_names;
+  static lock_reason_map lock_reason_names;
+
+  const char* reason_cstr()
+  {
+    auto it= rebuild_reason_names.find(reason);
+    if (it != rebuild_reason_names.end())
+      return it->second;
+    DBUG_ASSERT(0);
+    return "?";
+  }
+
+  const char* copy_reason_cstr()
+  {
+    auto it= copy_reason_names.find(copy_reason);
+    if (it != copy_reason_names.end())
+      return it->second;
+    DBUG_ASSERT(0);
+    return "?";
+  }
+
+  const char* lock_reason_cstr()
+  {
+    auto it= lock_reason_names.find(lock_reason);
+    if (it != lock_reason_names.end())
+      return it->second;
+    DBUG_ASSERT(0);
+    return "?";
+  }
+
+  rebuild_reason_enum reason;
+  copy_reason_enum copy_reason;
+  lock_reason_enum lock_reason;
+
+  Rebuild_reason() : reason(UNDEFINED), copy_reason(COPY_UNDEFINED), lock_reason(LOCK_UNDEFINED)
+  {}
+};
+
+
 /**
   Class describing changes to be done by ALTER TABLE.
   Instance of this class is passed to storage engine in order
@@ -2485,6 +2573,8 @@ public:
      my_get_err_msg(), so that the error message as a whole is localized.
   */
   const char *unsupported_reason;
+  const char *unsupported_reason_alloc;
+  Rebuild_reason rebuild_info;
 
   /** true when InnoDB should abort the alter when table is not empty */
   bool error_if_not_empty;
@@ -2498,6 +2588,8 @@ public:
   ~Alter_inplace_info()
   {
     delete handler_ctx;
+    if (unsupported_reason_alloc)
+      free((void *) unsupported_reason_alloc);
   }
 
   /**
@@ -2511,6 +2603,10 @@ public:
   */
   void report_unsupported_error(const char *not_supported,
                                 const char *try_instead) const;
+
+  bool set_unsupported_reason(THD *thd, uint32 code, ...);
+  bool set_rebuild_unsupported_reason(THD *thd);
+  bool set_lock_unsupported_reason(THD *thd);
 };
 
 

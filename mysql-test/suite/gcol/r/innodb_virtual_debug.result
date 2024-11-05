@@ -54,7 +54,7 @@ a	b	c	h
 28	1	29	mm
 NULL	NULL	NULL	mx
 ALTER TABLE t FORCE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: online rebuild with indexed virtual columns. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: LOCK_VCOL; Handler flags: 0x400; More: online rebuild with indexed virtual columns. Try LOCK=SHARED
 disconnect con1;
 DROP TABLE t;
 SET DEBUG_SYNC = 'RESET';

@@ -696,7 +696,7 @@ CREATE TABLE t1o LIKE t1;
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: FTS; Copy reason: COPY_HANDLER_FLAGS2; Lock reason: LOCK_FTS; Handler flags: 0x400800000520; More: Fulltext index creation requires a lock. Try LOCK=SHARED
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=SHARED;

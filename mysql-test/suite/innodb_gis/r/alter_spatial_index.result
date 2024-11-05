@@ -782,10 +782,10 @@ DROP table t1;
 #
 CREATE TABLE t1(p point NOT NULL) ENGINE=innodb;
 ALTER TABLE t1 ADD SPATIAL INDEX(p), LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: LOCK_GIS; Handler flags: 0x800000000; More: Do not support online operation on table with GIS index. Try LOCK=SHARED
 ALTER TABLE t1 ADD SPATIAL INDEX(p);
 ALTER TABLE t1 FORCE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED
+ERROR 0A000: LOCK=NONE is not supported. Reason: HANDLER_FLAGS; Copy reason: COPY_HANDLER_FLAGS; Lock reason: LOCK_GIS; Handler flags: 0x400; More: Do not support online operation on table with GIS index. Try LOCK=SHARED
 DROP TABLE t1;
 create table t1 (p point not null default if(unix_timestamp()>10,POINT(1,1),LineString(Point(0,0),Point(1,1)))) ENGINE=innodb;
 set timestamp=10;

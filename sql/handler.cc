@@ -4733,6 +4733,7 @@ Alter_inplace_info::Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
     ignore(ignore_arg),
     online(false),
     unsupported_reason(nullptr),
+    unsupported_reason_alloc(nullptr),
     error_if_not_empty(error_non_empty)
   {}
 
@@ -4746,6 +4747,147 @@ void Alter_inplace_info::report_unsupported_error(const char *not_supported,
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
              not_supported, unsupported_reason, try_instead);
 }
+
+
+static char *
+vformat_error(
+	THD*		thd,		/*!< in/out: session */
+	uint32	code,		/*!< MySQL error code */
+	va_list args)				/*!< Args */
+{
+	char*		str = NULL;
+	const char*	format = my_get_err_msg(code);
+
+	/* If the caller wants to push a message to the client then
+	the caller must pass a valid session handle. */
+
+	DBUG_ASSERT(thd != 0);
+	DBUG_ASSERT(format != 0);
+
+#ifdef _WIN32
+	int		size = _vscprintf(format, args) + 1;
+	if (size > 0) {
+		str = static_cast<char*>(malloc(size));
+	}
+	if (str == NULL) {
+		return NULL;	/* Watch for Out-Of-Memory */
+	}
+	str[size - 1] = 0x0;
+	vsnprintf(str, size, format, args);
+#elif HAVE_VASPRINTF
+	if (vasprintf(&str, format, args) == -1) {
+		/* In case of failure use a fixed length string */
+		str = static_cast<char*>(malloc(BUFSIZ));
+		vsnprintf(str, BUFSIZ, format, args);
+	}
+#else
+	/* Use a fixed length string. */
+	str = static_cast<char*>(malloc(BUFSIZ));
+	if (str == NULL) {
+		return NULL;	/* Watch for Out-Of-Memory */
+	}
+	vsnprintf(str, BUFSIZ, format, args);
+#endif /* _WIN32 */
+
+	return str;
+}
+
+#define __(N) {Rebuild_reason::N, #N}
+Rebuild_reason::rebuild_reason_map Rebuild_reason::rebuild_reason_names = {
+  __(UNDEFINED),
+  __(INSTANT),
+  __(FLAGS),
+  __(ROW_FORMAT),
+  __(KEY_BLOCK_SIZE),
+  __(CHANGED_COMPRESSION),
+  __(CHANGED_ENCRYPTION),
+  __(CHANGED_ENCRYPTION_KEY),
+  __(HANDLER_FLAGS),
+  __(AUTO_INC),
+  __(FTS)
+};
+
+Rebuild_reason::copy_reason_map Rebuild_reason::copy_reason_names = {
+  {Rebuild_reason::COPY_UNDEFINED, "none"},
+  __(COPY_FTS),
+  __(COPY_VCOL),
+  __(COPY_NFIELDS),
+  __(COPY_ZIP),
+  __(COPY_SYSTEM_VERSIONING),
+  __(COPY_HANDLER_FLAGS),
+  __(COPY_HANDLER_FLAGS2),
+  __(COPY_NEED_REBUID),
+  __(COPY_UNSUPPORTED),
+  __(COPY_NULLABLE_NOT_REDUNDANT),
+  __(COPY_NULLABLE_DROP_FTS),
+  __(COPY_NULLABLE_CHANGED)
+};
+
+Rebuild_reason::lock_reason_map Rebuild_reason::lock_reason_names = {
+  {Rebuild_reason::LOCK_UNDEFINED, "none"},
+  __(LOCK_FTS),
+  __(LOCK_GIS),
+  __(LOCK_VCOL),
+  __(LOCK_AUTO_INC),
+  __(LOCK_SYSTEM_VERSIONING)
+};
+#undef __
+
+
+bool Alter_inplace_info::set_unsupported_reason(THD *thd, uint32 code, ...)
+{
+  /* Partitions do it multiple times */
+  if (unsupported_reason_alloc) {
+    free((void *) unsupported_reason_alloc);
+    unsupported_reason_alloc= NULL;
+    unsupported_reason= NULL;
+  }
+  DBUG_ASSERT(!unsupported_reason);
+
+  va_list args;
+  va_start(args, code);
+
+  unsupported_reason_alloc= vformat_error(thd, code, args);
+  unsupported_reason= unsupported_reason_alloc;
+  va_end(args);
+  return unsupported_reason_alloc ? false : true;
+}
+
+
+bool Alter_inplace_info::set_rebuild_unsupported_reason(THD *thd)
+{
+  DBUG_ASSERT(rebuild_info.reason);
+  const char *more_reason= "none";
+  if (unsupported_reason && !unsupported_reason_alloc) {
+    more_reason= unsupported_reason;
+    unsupported_reason= NULL;
+  }
+  bool err= set_unsupported_reason(thd,
+                                   ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_REBUILD,
+                                   rebuild_info.reason_cstr(),
+                                   rebuild_info.copy_reason_cstr(),
+                                   rebuild_info.lock_reason_cstr(),
+                                   handler_flags,
+                                   more_reason);
+  return err;
+}
+
+bool Alter_inplace_info::set_lock_unsupported_reason(THD *thd)
+{
+  DBUG_ASSERT(rebuild_info.lock_reason);
+  const char *more_reason= "none";
+  if (unsupported_reason) {
+    more_reason= unsupported_reason;
+    unsupported_reason= NULL;
+  }
+  bool err= set_unsupported_reason(thd,
+                                   ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_LOCK,
+                                   rebuild_info.lock_reason_cstr(),
+                                   handler_flags,
+                                   more_reason);
+  return err;
+}
+
 
 
 /**
