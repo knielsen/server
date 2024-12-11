@@ -467,6 +467,8 @@ ulong what_to_log;
 ulong slow_launch_time;
 ulong snc_default_lock_expiration;
 ulonglong snc_lock_memory_target;
+ulonglong snc_max_mm_tree_mem;
+my_bool snc_max_mm_tree_mem_log_limit_hits;
 uint32 snc_master_ddl_repl_subdomain_id;
 uint32 snc_slave_ddl_repl_subdomain_id;
 my_bool snc_enable_mdev29833;

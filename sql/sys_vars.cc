@@ -3544,6 +3544,20 @@ static Sys_var_ulong Sys_snc_min_recalc_interval(
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(10), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
 
+static Sys_var_ulonglong Sys_snc_max_mm_tree_mem(
+       "snc_max_mm_tree_mem",
+       "Stop building SEL_TREEs once local memory consumption exceeds this threshold (bytes). "
+       "0 - feature disabled/no limit.",
+       GLOBAL_VAR(snc_max_mm_tree_mem), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, SIZE_T_MAX), DEFAULT(1024 * 1024 * 1024), BLOCK_SIZE(1));
+
+static Sys_var_mybool Sys_snc_max_mm_tree_mem_log_limit_hits(
+       "snc_max_mm_tree_mem_log_limit_hits",
+       "Print a warning when local memory consumption exceeds snc_max_mm_tree_mem.",
+       GLOBAL_VAR(snc_max_mm_tree_mem_log_limit_hits),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)

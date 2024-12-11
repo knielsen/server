@@ -1300,6 +1300,13 @@ The following specify which files/extra groups are read (specified before remain
  The value of snc_master_ddl_repl_subdomain_id on master
  should match the value of snc_slave_ddl_repl_subdomain_id
  on slave. 0 = feature disabled.
+ --snc-max-mm-tree-mem=# 
+ Stop building SEL_TREEs once local memory consumption
+ exceeds this threshold (bytes). 0 - feature disabled/no
+ limit.
+ --snc-max-mm-tree-mem-log-limit-hits 
+ Print a warning when local memory consumption exceeds
+ snc_max_mm_tree_mem.
  --snc-min-recalc-interval=# 
  Minimum time interval between stats recalc for a given
  table (seconds).
@@ -1810,6 +1817,8 @@ snc-default-lock-expiration 120
 snc-enable-mdev29833 FALSE
 snc-lock-memory-target 1073741824
 snc-master-ddl-repl-subdomain-id 0
+snc-max-mm-tree-mem 1073741824
+snc-max-mm-tree-mem-log-limit-hits FALSE
 snc-min-recalc-interval 10
 snc-slave-ddl-repl-subdomain-id 0
 sort-buffer-size 2097152

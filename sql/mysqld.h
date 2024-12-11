@@ -234,6 +234,8 @@ extern ulong query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
 extern ulong snc_default_lock_expiration;
 extern ulonglong snc_lock_memory_target;
+extern ulonglong snc_max_mm_tree_mem;
+extern my_bool snc_max_mm_tree_mem_log_limit_hits;
 extern uint32 snc_master_ddl_repl_subdomain_id;
 extern uint32 snc_slave_ddl_repl_subdomain_id;
 extern my_bool snc_enable_mdev29833;

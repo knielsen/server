@@ -3001,6 +3001,7 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id;
+  my_bool    local_memory_limit_hit_reported;
   ulong      col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
@@ -4553,6 +4554,7 @@ public:
   void set_query_id(query_id_t new_query_id)
   {
     query_id= new_query_id;
+    local_memory_limit_hit_reported= FALSE;
 #ifdef WITH_WSREP
     if (WSREP_NNULL(this))
     {

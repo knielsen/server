@@ -7905,6 +7905,10 @@ SEL_TREE *Item_func_in::get_func_mm_tree(RANGE_OPT_PARAM *param,
             check for NULL.
           */
           tree= tree_or(param, tree, tree2);
+          if (!tree)
+          {
+            break;
+          }
         }
       }
 
@@ -9194,7 +9198,47 @@ int and_range_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2,
   result->keys_map= result_keys;
   DBUG_RETURN(0);
 }
-  
+
+static
+void report_local_memory_exceeded_limit(THD *thd)
+{
+  if (!snc_max_mm_tree_mem_log_limit_hits || thd->local_memory_limit_hit_reported)
+  {
+    return;
+  }
+
+  thd->local_memory_limit_hit_reported= TRUE;
+  const char *query= thd->query();
+  char hint[1024]= {0};
+
+  if (query)
+  {
+    size_t len= current_thd->query_length();
+    const char *hint_start= query;
+
+    if (len > 4 && query[len - 2] == '*' && query [len - 1] == '/')
+    {
+      for (size_t i= len - 4; i > 0; --i)
+      {
+        if (query[i] == '/' && query[i + 1] == '*')
+        {
+          hint_start= query + i;
+          break;
+        }
+      }
+    }
+
+    strncpy(hint, hint_start, sizeof(hint) - 1);
+    hint[sizeof(hint) - 1]= '\0';
+  }
+
+  sql_print_warning(
+    "Query optimizer reached local memory usage limit "
+    "(snc_max_mm_tree_mem=%lld, local_memory_used=%lld) for \"%s\"",
+    snc_max_mm_tree_mem,
+    thd->status_var.local_memory_used,
+    hint);
+}
 
 /*
   Build a SEL_TREE for a conjunction out of such trees for the conjuncts
@@ -9277,6 +9321,12 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2)
   {
     tree1->type=SEL_TREE::KEY_SMALLER;
     DBUG_RETURN(tree1);
+  }
+
+  if (snc_max_mm_tree_mem != 0 && current_thd->status_var.local_memory_used > snc_max_mm_tree_mem)
+  {
+    report_local_memory_exceeded_limit(current_thd);
+    DBUG_RETURN(NULL);
   }
 
   if (!tree1->merges.is_empty())
@@ -9658,6 +9708,12 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     DBUG_RETURN(tree1);				// Can't use this
   if (tree2->type == SEL_TREE::MAYBE)
     DBUG_RETURN(tree2);
+
+  if (snc_max_mm_tree_mem != 0 && current_thd->status_var.local_memory_used > snc_max_mm_tree_mem)
+  {
+    report_local_memory_exceeded_limit(current_thd);
+    DBUG_RETURN(NULL);
+  }
 
   SEL_TREE *result= NULL;
   key_map result_keys;
