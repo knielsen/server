@@ -8300,6 +8300,20 @@ static bool mysql_inplace_alter_table(THD *thd,
   DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
   THD_STAGE_INFO(thd, stage_alter_inplace_commit);
 
+  if (thd->lex->describe & DESCRIBE_DRY_RUN)
+  {
+    // Check "alter_table_rollback_new_index" debug code below.
+    table->file->ha_commit_inplace_alter_table(altered_table,
+                                               ha_alter_info,
+                                               false);
+    my_error(ER_ALTER_DRY_RUN, MYF(0),
+             "INPLACE",
+             alter_info->flags,
+             alter_info->partition_flags,
+             ha_alter_info->handler_flags);
+    goto cleanup;
+  }
+
   DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
       table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
@@ -11241,6 +11255,16 @@ do_continue:;
   */
   if (alter_info->flags == 0 && alter_info->partition_flags == 0)
   {
+    if (thd->lex->describe & DESCRIBE_DRY_RUN)
+    {
+      my_error(ER_ALTER_DRY_RUN, MYF(0),
+               "NOOP",
+               alter_info->flags,
+               alter_info->partition_flags,
+               0ULL);
+      DBUG_RETURN(true);
+    }
+
     my_snprintf(alter_ctx.tmp_buff, sizeof(alter_ctx.tmp_buff),
                 ER_THD(thd, ER_INSERT_INFO), 0L, 0L,
                 thd->get_stmt_da()->current_statement_warn_count());
@@ -11277,6 +11301,10 @@ do_continue:;
                  "LOCK=NONE/SHARED", "LOCK=EXCLUSIVE");
         DBUG_RETURN(true);
       }
+
+      if (thd->lex->describe & DESCRIBE_DRY_RUN)
+        goto dry_run_error;
+
       res= simple_rename_or_index_change(thd, table_list,
                                          alter_info->keys_onoff,
                                          &trigger_param,
@@ -11284,6 +11312,17 @@ do_continue:;
     }
     else
     {
+      if (thd->lex->describe & DESCRIBE_DRY_RUN)
+      {
+dry_run_error:
+        my_error(ER_ALTER_DRY_RUN_NOT_SUPPORTED, MYF(0),
+                 "NOOP_RENAME_OR_KEYS_ONOFF",
+                 alter_info->flags,
+                 alter_info->partition_flags,
+                 0ULL);
+        DBUG_RETURN(true);
+      }
+
       res= simple_tmp_rename_or_index_change(thd, table_list,
                                              alter_info->keys_onoff,
                                              &alter_ctx);
@@ -11372,6 +11411,17 @@ do_continue:;
                "ALGORITHM=COPY/INPLACE",
                ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION),
                "ALGORITHM=DEFAULT");
+      DBUG_RETURN(true);
+    }
+
+    if (thd->lex->describe & DESCRIBE_DRY_RUN)
+    {
+      // TODO Test, if possible. The SQL grammar seems to NOT allow DRY_RUN with PARTITION.
+      my_error(ER_ALTER_DRY_RUN_NOT_SUPPORTED, MYF(0),
+               "FAST_ALTER_PARTITION",
+               alter_info->flags,
+               alter_info->partition_flags,
+               0ULL);
       DBUG_RETURN(true);
     }
 
@@ -11650,6 +11700,18 @@ do_continue:;
       */
       table->file->ha_create_partitioning_metadata(alter_ctx.get_tmp_path(),
                                                    NULL, CHF_DELETE_FLAG);
+
+      if (thd->lex->describe & DESCRIBE_DRY_RUN)
+      {
+        // Even if NOOP ALTER, in DRY_RUN the query should not hit binlog, so abort with error.
+        my_error(ER_ALTER_DRY_RUN, MYF(0),
+                 "INPLACE_NOOP",
+                 alter_info->flags,
+                 alter_info->partition_flags,
+                 ha_alter_info.handler_flags);
+        goto err_new_table_cleanup;
+      }
+
       goto end_inplace;
     }
 
@@ -11751,6 +11813,21 @@ do_continue:;
         cleanup_table_after_inplace_alter(&altered_table);
         goto err_cleanup;
       }
+
+      if (thd->lex->describe & DESCRIBE_DRY_RUN)
+      {
+        // This should never happen, but just in case.
+        DBUG_ASSERT(0);
+        my_error(ER_ALTER_DRY_RUN_ERROR, MYF(0),
+                 "INPLACE",
+                 alter_info->flags,
+                 alter_info->partition_flags,
+                 ha_alter_info.handler_flags);
+        cleanup_table_after_inplace_alter(&altered_table);
+        // TODO Cleanup something else?
+        DBUG_RETURN(true);
+      }
+
       cleanup_table_after_inplace_alter_keep_files(&altered_table);
 
       goto end_inplace;
@@ -11760,6 +11837,17 @@ do_continue:;
   }
 
 alter_copy:
+  if (thd->lex->describe & DESCRIBE_DRY_RUN)
+  {
+    // DRY_RUN not supported for non inplace ALTER, abort.
+    my_error(ER_ALTER_DRY_RUN_NOT_SUPPORTED, MYF(0),
+             "COPY",
+             alter_info->flags,
+             alter_info->partition_flags,
+             0ULL);
+    goto err_new_table_cleanup;
+  }
+
   /* ALTER TABLE using copy algorithm. */
 
   /* Check if ALTER TABLE is compatible with foreign key definitions. */

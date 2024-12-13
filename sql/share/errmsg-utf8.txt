@@ -12297,3 +12297,10 @@ WARN_INDEX_HINTS_IGNORED
         ukr "Підказки по використанню индексів ігноруются тому що вони несумісні з RETURNING"
 ER_SIGNAL_SKIP_ROW_FROM_TRIGGER
         eng "The row is skipped by a trigger implementation"
+
+ER_ALTER_DRY_RUN
+  eng "%s ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
+ER_ALTER_DRY_RUN_NOT_SUPPORTED
+  eng "%s ALTER cannot be executed with DRY_RUN flag; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
+ER_ALTER_DRY_RUN_ERROR
+  eng "Error during %s ALTER execution with DRY_RUN flag; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
