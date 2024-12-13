@@ -1,0 +1,255 @@
+--source include/have_log_bin.inc
+
+# Purpose:
+#   Test the DRY_RUN option for ALTER TABLE.
+#       DRY_RUN is an option for ALTER TABLE that allows the user to test
+#       an ALTER TABLE operation feasibility without actually modifying the table.
+#       It is particularly useful and was designed for testing
+#       ALTER TABLE ..., ALGORITHM=INSTANT operations for feasibility on live systems.
+#
+#   Verify that ALTER TABLE with DRY_RUN does NOT modify:
+#       1. The table definition.
+#       2. The table data.
+#       3. The binary log.
+#
+#   An ALTER_TABLE operation with DRY_RUN can only fail with error:
+#       1. ER_ALTER_DRY_RUN
+#       2. ER_ALTER_DRY_RUN_NOT_SUPPORTED
+#       3. The same error code for the operation if DRY_RUN is NOT specified.
+#
+#   Verify that DRY_RUN is supported (error code ER_ALTER_DRY_RUN)
+#   for some ALTER TABLE operations:
+#       1. INPLACE
+#       2. NOOP
+#       3. INPLACE_NOOP
+#   DRY_RUN being supported means that there is great confidence that the
+#   operation will succeed without error if DRY_RUN is NOT specified.
+#
+#   Verify that DRY_RUN is NOT supported (error code ER_ALTER_DRY_RUN_NOT_SUPPORTED)
+#   for some operations:
+#       1. NOOP_RENAME_OR_KEYS_ONOFF
+#       2. FAST_ALTER_PARTITION (TODO test if possible, SQL syntax is NOT supported)
+#       3. COPY
+#   DRY_RUN NOT being supported means that there is no confidence that the
+#   operation will succeed without error if DRY_RUN is NOT specified.
+#   This is because internally the ALTER TABLE ..., DRY_RUN operation is
+#   quitted too early.
+#
+#   Check that DRY_RUN is NOT a reserved keyword.
+#
+#   Tests are run for InnoDB, Aria and MEMORY storage engines.
+#
+#   InnoDB behavior guided the definition of the tests, allowing to test all
+#   the ALTER TABLE ..., DRY_RUN related code paths.
+#   Aria and MEMORY are tested under the same conditions defined for InnoDB.
+#
+#   The .result file is taylored for InnoDB.
+#   .rdiff files are provided for the other engines.
+#
+
+--let $default_engine= query_get_value(SHOW VARIABLES LIKE 'default_storage_engine', Value, 1)
+--let $error_code= ER_ALTER_DRY_RUN
+--let $create_opts= DEFAULT CHARSET=utf8
+if ($default_engine == "Aria")
+{
+    --let $create_opts= DEFAULT CHARSET=utf8 PAGE_CHECKSUM=1
+}
+
+RESET MASTER;
+
+# ==================================
+
+# Storage engine MEMORY doesn't support BLOB/TEXT columns.
+if ($default_engine != "MEMORY")
+{
+    CREATE TABLE t1 (a INT, b TEXT) DEFAULT CHARSET=utf8;
+    --replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+    SHOW CREATE TABLE t1;
+
+    --echo #
+    --echo # Test addition of FULLTEXT index.
+    --echo #
+    # InnoDB: DRY_RUN is supported (INPLACE), Aria: DRY_RUN is NOT supported (COPY).
+    if ($default_engine == "Aria")
+    {
+        --let $error_code= ER_ALTER_DRY_RUN_NOT_SUPPORTED
+    }
+    --error $error_code
+    ALTER TABLE t1 ADD FULLTEXT INDEX (b(64)), DRY_RUN;
+    --replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+    SHOW CREATE TABLE t1;
+
+    --echo #
+    --echo # Test that CHECK TABLE ... EXTENDED is OK.
+    --echo #
+    CHECK TABLE t1 EXTENDED;
+
+    DROP TABLE t1;
+}
+
+# ==================================
+
+CREATE TABLE t2 (a INT, b DOUBLE) DEFAULT CHARSET=utf8;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test ADD INDEX on empty table.
+--echo #
+# InnoDB: DRY_RUN is supported (INPLACE), Aria/MEMORY: DRY_RUN is NOT supported (COPY).
+if ($default_engine == "MEMORY")
+{
+    --let $error_code= ER_ALTER_DRY_RUN_NOT_SUPPORTED
+}
+--error $error_code
+ALTER TABLE t2 ADD INDEX b_index(b), DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test ADD COLUMN on empty table.
+--echo #
+# InnoDB: DRY_RUN is supported (INPLACE), Aria/MEMORY: ALTER TABLE NOT supported with ALGORITHM=INSTANT.
+if ($default_engine == "Aria")
+{
+    --let $error_code= ER_ALTER_OPERATION_NOT_SUPPORTED
+}
+if ($default_engine == "MEMORY")
+{
+    --let $error_code= ER_ALTER_OPERATION_NOT_SUPPORTED
+}
+--error $error_code
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test DROP COLUMN on empty table.
+--echo #
+# InnoDB: DRY_RUN is supported (INPLACE), Aria/MEMORY: ALTER TABLE NOT supported with ALGORITHM=INSTANT.
+--error $error_code
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+INSERT INTO t2 (a, b) VALUES (1, 1.1), (2, 2.2), (3, 3.3);
+
+--echo #
+--echo # Test ADD COLUMN on non-empty table.
+--echo #
+# InnoDB: DRY_RUN is supported (INPLACE), Aria/MEMORY: ALTER TABLE NOT supported with ALGORITHM=INSTANT.
+--error $error_code
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test DROP COLUMN on non-empty table.
+--echo #
+# InnoDB: DRY_RUN is supported (INPLACE), Aria/MEMORY: ALTER TABLE NOT supported with ALGORITHM=INSTANT.
+--error $error_code
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+ALTER TABLE t2 ADD INDEX a_index(a);
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test DROP INDEX, ADD INDEX (same index) on non-empty table.
+--echo #
+# InnoDB/MEMORY: DRY_RUN is supported (INPLACE_NOOP), Aria: DRY_RUN is NOT supported (COPY).
+if ($default_engine == "MEMORY")
+{
+    --let $error_code= ER_ALTER_DRY_RUN
+}
+--error $error_code
+ALTER TABLE t2 DROP INDEX a_index, ADD INDEX a_index(a), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+ALTER TABLE t2 DROP INDEX a_index;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test CHANGE column type (same type) on non-empty table.
+--echo #
+# InnoDB/Aria/MEMORY: DRY_RUN is supported (INPLACE).
+--error ER_ALTER_DRY_RUN
+ALTER TABLE t2 CHANGE a a INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test CHANGE IF EXISTS (non existing column) on non-empty table.
+--echo #
+# InnoDB/Aria/MEMORY: DRY_RUN is supported (INPLACE_NOOP).
+--error ER_ALTER_DRY_RUN
+ALTER TABLE t2 CHANGE IF EXISTS c c INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test ADD COLUMN IF NOT EXISTS (existing column) on non-empty table.
+--echo #
+# InnoDB/Aria/MEMORY: DRY_RUN is supported (NOOP).
+--error ER_ALTER_DRY_RUN
+ALTER TABLE t2 ADD COLUMN IF NOT EXISTS b DOUBLE, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test RENAME (same name) on non-empty table.
+--echo #
+# InnoDB/Aria/MEMORY: DRY_RUN is NOT supported (NOOP_RENAME_OR_KEYS_ONOFF).
+--error ER_ALTER_DRY_RUN_NOT_SUPPORTED
+ALTER TABLE t2 RENAME t2, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test ADD COLUMN with ALGORITHM=COPY on non-empty table.
+--echo #
+# InnoDB/Aria/MEMORY: DRY_RUN is NOT supported (COPY).
+--error ER_ALTER_DRY_RUN_NOT_SUPPORTED
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=COPY, DRY_RUN;
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE t2;
+
+--echo #
+--echo # Test that CHECK TABLE ... EXTENDED is OK.
+--echo #
+CHECK TABLE t2 EXTENDED;
+
+--echo #
+--echo # Test that data was not modified.
+--echo #
+SELECT * FROM t2;
+
+DROP TABLE t2;
+
+# ==================================
+
+--echo #
+--echo # Test that DRY_RUN is NOT a reserved keyword.
+--echo #
+CREATE TABLE `DRY_RUN` (`DRY_RUN` INT);
+--let $create_opts= DEFAULT CHARSET=latin1
+if ($default_engine == "Aria")
+{
+    --let $create_opts= DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+}
+--replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
+SHOW CREATE TABLE `DRY_RUN`;
+INSERT INTO `DRY_RUN` VALUES (1);
+SELECT * FROM `DRY_RUN`;
+DROP TABLE `DRY_RUN`;
+
+# ==================================
+
+--echo #
+--echo # Test that no DRY_RUN query hit the binlog.
+--echo #
+--source include/show_binlog_events.inc
