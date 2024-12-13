@@ -23,7 +23,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` double(18,7) DEFAULT NULL,
   KEY `d` (`d`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

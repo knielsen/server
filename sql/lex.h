@@ -200,6 +200,8 @@ SYMBOL symbols[] = {
   { "DOUBLE",		SYM(DOUBLE_SYM)},
   { "DO_DOMAIN_IDS",    SYM(DO_DOMAIN_IDS_SYM)},
   { "DROP",		SYM(DROP)},
+  { "DRY",		SYM(DRY_SYM)},
+  { "DRY_RUN",		SYM(DRY_RUN_SYM)},
   { "DUAL",		SYM(DUAL_SYM)},
   { "DUMPFILE",		SYM(DUMPFILE)},
   { "DUPLICATE",	SYM(DUPLICATE_SYM)},

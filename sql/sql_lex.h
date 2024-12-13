@@ -354,6 +354,7 @@ void binlog_unsafe_map_init();
 */
 #define DESCRIBE_PARTITIONS	4
 #define DESCRIBE_EXTENDED2	8
+#define DESCRIBE_DRY_RUN	16
 
 #ifdef MYSQL_SERVER
 

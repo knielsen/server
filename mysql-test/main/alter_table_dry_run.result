@@ -1,0 +1,227 @@
+RESET MASTER;
+CREATE TABLE t1 (a INT, b TEXT) DEFAULT CHARSET=utf8;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test addition of FULLTEXT index.
+#
+ALTER TABLE t1 ADD FULLTEXT INDEX (b(64)), DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x8; Partition flags: 0x0; Handler flags: 0x800000400
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test that CHECK TABLE ... EXTENDED is OK.
+#
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t2 (a INT, b DOUBLE) DEFAULT CHARSET=utf8;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test ADD INDEX on empty table.
+#
+ALTER TABLE t2 ADD INDEX b_index(b), DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x8; Partition flags: 0x0; Handler flags: 0x800000000
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test ADD COLUMN on empty table.
+#
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x1; Partition flags: 0x0; Handler flags: 0x40000000000
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test DROP COLUMN on empty table.
+#
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2; Partition flags: 0x0; Handler flags: 0x200000000000
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+INSERT INTO t2 (a, b) VALUES (1, 1.1), (2, 2.2), (3, 3.3);
+#
+# Test ADD COLUMN on non-empty table.
+#
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x1; Partition flags: 0x0; Handler flags: 0x40000000000
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test DROP COLUMN on non-empty table.
+#
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2; Partition flags: 0x0; Handler flags: 0x200000000000
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+ALTER TABLE t2 ADD INDEX a_index(a);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL,
+  KEY `a_index` (`a`)
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test DROP INDEX, ADD INDEX (same index) on non-empty table.
+#
+ALTER TABLE t2 DROP INDEX a_index, ADD INDEX a_index(a), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE_NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x18; Partition flags: 0x0; Handler flags: 0x0
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL,
+  KEY `a_index` (`a`)
+) ENGINE=<ENGINE> <CREATE_OPTS>
+ALTER TABLE t2 DROP INDEX a_index;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test CHANGE column type (same type) on non-empty table.
+#
+ALTER TABLE t2 CHANGE a a INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x20000004; Partition flags: 0x0; Handler flags: 0x100
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test CHANGE IF EXISTS (non existing column) on non-empty table.
+#
+ALTER TABLE t2 CHANGE IF EXISTS c c INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
+ERROR HY000: INPLACE_NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x20000000; Partition flags: 0x0; Handler flags: 0x0
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test ADD COLUMN IF NOT EXISTS (existing column) on non-empty table.
+#
+ALTER TABLE t2 ADD COLUMN IF NOT EXISTS b DOUBLE, DRY_RUN;
+ERROR HY000: NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x0; Partition flags: 0x0; Handler flags: 0x0
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test RENAME (same name) on non-empty table.
+#
+ALTER TABLE t2 RENAME t2, DRY_RUN;
+ERROR HY000: NOOP_RENAME_OR_KEYS_ONOFF ALTER cannot be executed with DRY_RUN flag; ALTER flags: 0x20; Partition flags: 0x0; Handler flags: 0x0
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test ADD COLUMN with ALGORITHM=COPY on non-empty table.
+#
+ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=COPY, DRY_RUN;
+ERROR HY000: COPY ALTER cannot be executed with DRY_RUN flag; ALTER flags: 0x1; Partition flags: 0x0; Handler flags: 0x0
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` double DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+#
+# Test that CHECK TABLE ... EXTENDED is OK.
+#
+CHECK TABLE t2 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+#
+# Test that data was not modified.
+#
+SELECT * FROM t2;
+a	b
+1	1.1
+2	2.2
+3	3.3
+DROP TABLE t2;
+#
+# Test that DRY_RUN is NOT a reserved keyword.
+#
+CREATE TABLE `DRY_RUN` (`DRY_RUN` INT);
+SHOW CREATE TABLE `DRY_RUN`;
+Table	Create Table
+DRY_RUN	CREATE TABLE `DRY_RUN` (
+  `DRY_RUN` int(11) DEFAULT NULL
+) ENGINE=<ENGINE> <CREATE_OPTS>
+INSERT INTO `DRY_RUN` VALUES (1);
+SELECT * FROM `DRY_RUN`;
+DRY_RUN
+1
+DROP TABLE `DRY_RUN`;
+#
+# Test that no DRY_RUN query hit the binlog.
+#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b TEXT) DEFAULT CHARSET=utf8
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a INT, b DOUBLE) DEFAULT CHARSET=utf8
+master-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 (a, b) VALUES (1, 1.1), (2, 2.2), (3, 3.3)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t2 ADD INDEX a_index(a)
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t2 DROP INDEX a_index
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `t2` /* generated by server */
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `DRY_RUN` (`DRY_RUN` INT)
+master-bin.000001	#	Gtid	#	#	BEGIN GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `DRY_RUN` VALUES (1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Gtid	#	#	GTID #-#-#
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE `DRY_RUN` /* generated by server */

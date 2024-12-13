@@ -7959,3 +7959,10 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_REBUILD
   eng "%s; Copy reason: %s; Lock reason: %s; Handler flags: 0x%llx; More: %s"
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_LOCK
   eng "%s; Handler flags: 0x%llx; More: %s"
+
+ER_ALTER_DRY_RUN
+  eng "%s ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
+ER_ALTER_DRY_RUN_NOT_SUPPORTED
+  eng "%s ALTER cannot be executed with DRY_RUN flag; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
+ER_ALTER_DRY_RUN_ERROR
+  eng "Error during %s ALTER execution with DRY_RUN flag; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"

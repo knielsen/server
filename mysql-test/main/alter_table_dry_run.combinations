@@ -1,0 +1,9 @@
+[innodb]
+innodb
+default-storage-engine=InnoDB
+
+[aria]
+default-storage-engine=Aria
+
+[memory]
+default-storage-engine=MEMORY

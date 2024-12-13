@@ -24,7 +24,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` double(18,7) DEFAULT NULL,
   KEY `d` (`d`)
-) ENGINE=Aria DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci PAGE_CHECKSUM=1
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
