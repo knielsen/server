@@ -32,6 +32,8 @@ if ($tmp)
   --echo Relay_Master_Log_File	#
   --echo Slave_IO_Running	No
   --echo Slave_SQL_Running	No
+  --echo Slave_Parallel_Threads_Total	#
+  --echo Slave_Parallel_Threads_Active	#
   --echo Replicate_Do_DB	#
   --echo Replicate_Ignore_DB	#
   --echo Replicate_Do_Table	#
@@ -77,7 +79,7 @@ if ($tmp)
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
-  --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 44 # 51 # 52 # 53 # 54 #
+  --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 19 # 20 # 24 # 25 # 26 # 27 # 28 # 42 # 43 # 44 # 46 # 53 # 54 # 55 # 56 #
   query_vertical
   SHOW SLAVE STATUS;
 }

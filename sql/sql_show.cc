@@ -9191,14 +9191,14 @@ int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   Constants for columns that are present in
   SHOW ALL SLAVES STATUS
   that are not in SHOW SLAVE STATUS. Specifically, columns 0 and 1, and
-  everything at and above 56.
+  everything at and above 58.
     0: Connection_name
     1: Slave_SQL_State
-    56: Retried_transactions
+    58: Retried_transactions
 */
 #define SLAVE_STATUS_COL_CONNECTION_NAME 0
 #define SLAVE_STATUS_COL_SLAVE_SQL_STATE 1
-#define SLAVE_STATUS_COL_RETRIED_TRANSACTIONS 56
+#define SLAVE_STATUS_COL_RETRIED_TRANSACTIONS 58
 
 static int make_slave_status_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
@@ -10657,6 +10657,8 @@ ST_FIELD_INFO slave_status_info[]=
   Column("Relay_Master_Log_File", Varchar(FN_REFLEN), NOT_NULL),
   Column("Slave_IO_Running", Varchar(10), NOT_NULL),
   Column("Slave_SQL_Running", Varchar(3), NOT_NULL),
+  Column("Slave_Parallel_Threads_Total", ULonglong(20), NOT_NULL),
+  Column("Slave_Parallel_Threads_Active", ULonglong(20), NOT_NULL),
   Column("Replicate_Do_DB", Varchar(), NOT_NULL),
   Column("Replicate_Ignore_DB", Varchar(), NOT_NULL),
   Column("Replicate_Do_Table", Varchar(), NOT_NULL),

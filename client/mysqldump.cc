@@ -6565,7 +6565,7 @@ static int do_show_slave_status(MYSQL *mysql_con, int have_mariadb_gtid,
 
   while ((row= mysql_fetch_row(slave)))
   {
-    if (row[9 + multi_source] && row[21 + multi_source])
+    if (row[9 + multi_source] && row[23 + multi_source])
     {
       if (use_gtid)
       {
@@ -6593,7 +6593,7 @@ static int do_show_slave_status(MYSQL *mysql_con, int have_mariadb_gtid,
       }
       fprintf(md_result_file,
               "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-              row[9 + multi_source], row[21 + multi_source]);
+              row[9 + multi_source], row[23 + multi_source]);
 
       check_io(md_result_file);
     }

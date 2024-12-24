@@ -34,6 +34,8 @@ Relay_Log_Pos	<relay_log_pos>
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
+Slave_Parallel_Threads_Total	0
+Slave_Parallel_Threads_Active	0
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
@@ -99,6 +101,8 @@ Relay_Log_Pos	<relay_log_pos>
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
+Slave_Parallel_Threads_Total	0
+Slave_Parallel_Threads_Active	0
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
