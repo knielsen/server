@@ -2899,6 +2899,17 @@ void show_master_info_get_fields(THD *thd, List<Item> *field_list,
   field_list->push_back(new (mem_root)
                         Item_empty_string(thd, "Slave_SQL_Running", 3),
                         mem_root);
+
+  if (opt_slave_parallel_threads_active != 0)
+  {
+    field_list->push_back(new (mem_root)
+                          Item_return_int(thd, "Slave_Parallel_Threads_Total", 8,
+                                        MYSQL_TYPE_LONG));
+    field_list->push_back(new (mem_root)
+                          Item_return_int(thd, "Slave_Parallel_Threads_Active", 8,
+                                        MYSQL_TYPE_LONG));
+  }
+
   field_list->push_back(new (mem_root)
                         Item_empty_string(thd, "Replicate_Do_DB", 20),
                         mem_root);
@@ -3135,6 +3146,13 @@ static bool send_show_master_info_data(THD *thd, Master_info *mi, bool full,
     protocol->store(mi->rli.group_master_log_name, &my_charset_bin);
     protocol->store(slave_running[mi->slave_running], &my_charset_bin);
     protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
+
+    if (opt_slave_parallel_threads_active != 0)
+    {
+      protocol->store((uint32)opt_slave_parallel_threads);
+      protocol->store((uint32)(opt_slave_parallel_threads_active == 0 ? opt_slave_parallel_threads : opt_slave_parallel_threads_active));
+    }
+
     protocol->store(rpl_filter->get_do_db());
     protocol->store(rpl_filter->get_ignore_db());
 
