@@ -2971,6 +2971,8 @@ void store_master_info(THD *thd, Master_info *mi, TABLE *table,
   store_string(field++, mi->rli.group_master_log_name);
   store_string(field++, &slave_running[mi->slave_running]);
   store_string(field++, mi->rli.slave_running ? &msg_yes : &msg_no);
+  (*field++)->store((ulonglong)opt_slave_parallel_threads);
+  (*field++)->store((ulonglong)(opt_slave_parallel_threads_active == 0 ? opt_slave_parallel_threads : opt_slave_parallel_threads_active));
   store_list(field++, rpl_filter->get_do_db());
   store_list(field++, rpl_filter->get_ignore_db());
 

@@ -25,6 +25,8 @@ Relay_Log_Pos	#
 Relay_Master_Log_File	#
 Slave_IO_Running	#
 Slave_SQL_Running	#
+Slave_Parallel_Threads_Total	#
+Slave_Parallel_Threads_Active	#
 Replicate_Do_DB	#
 Replicate_Ignore_DB	#
 Replicate_Do_Table	#

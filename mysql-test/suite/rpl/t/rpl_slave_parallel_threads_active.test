@@ -159,6 +159,22 @@ select @@slave_parallel_threads, @@slave_parallel_threads_active;
 DROP TABLE t1;
 --sync_slave_with_master
 
+# SHOW SLAVE STATUS
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_threads=8;
+--source include/start_slave.inc
+SET GLOBAL slave_parallel_threads_active= 3;
+let $threads_total= query_get_value(SHOW SLAVE STATUS, Slave_Parallel_Threads_Total, 1);
+let $threads_active= query_get_value(SHOW SLAVE STATUS, Slave_Parallel_Threads_Active, 1);
+--echo Slave_Parallel_Threads_Total: $threads_total
+--echo Slave_Parallel_Threads_Active: $threads_active
+SET GLOBAL slave_parallel_threads_active= 8;
+let $threads_total= query_get_value(SHOW SLAVE STATUS, Slave_Parallel_Threads_Total, 1);
+let $threads_active= query_get_value(SHOW SLAVE STATUS, Slave_Parallel_Threads_Active, 1);
+--echo Slave_Parallel_Threads_Total: $threads_total
+--echo Slave_Parallel_Threads_Active: $threads_active
+
 --source include/stop_slave.inc
 SET GLOBAL slave_parallel_threads= @old_parallel_threads;
 SET GLOBAL slave_parallel_mode= @old_parallel_mode;

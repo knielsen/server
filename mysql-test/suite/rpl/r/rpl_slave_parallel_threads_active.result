@@ -166,6 +166,16 @@ select @@slave_parallel_threads, @@slave_parallel_threads_active;
 connection master;
 DROP TABLE t1;
 connection slave;
+connection slave;
+include/stop_slave.inc
+SET GLOBAL slave_parallel_threads=8;
+include/start_slave.inc
+SET GLOBAL slave_parallel_threads_active= 3;
+Slave_Parallel_Threads_Total: 8
+Slave_Parallel_Threads_Active: 3
+SET GLOBAL slave_parallel_threads_active= 8;
+Slave_Parallel_Threads_Total: 8
+Slave_Parallel_Threads_Active: 8
 include/stop_slave.inc
 SET GLOBAL slave_parallel_threads= @old_parallel_threads;
 SET GLOBAL slave_parallel_mode= @old_parallel_mode;
