@@ -1,4 +1,5 @@
 set names utf8;
+SET snc_check_table_dry_mode=OFF;
 CREATE TABLE corrupt_bit_test_ā(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR(100),

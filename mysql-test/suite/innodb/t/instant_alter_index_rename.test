@@ -2,6 +2,8 @@
 --source include/have_debug.inc
 --source include/have_sequence.inc
 
+SET snc_check_table_dry_mode=OFF;
+
 delimiter |;
 create function get_index_id(tbl_id int, index_name char(100))
   returns int

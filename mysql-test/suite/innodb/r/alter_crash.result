@@ -1,3 +1,4 @@
+SET snc_check_table_dry_mode=OFF;
 #
 # Bug#20015132 ALTER TABLE FAILS TO CHECK IF TABLE IS CORRUPTED
 #
@@ -20,13 +21,13 @@ test.t1	check	error	Corrupt
 # restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Warning	InnoDB: Index c2 is marked as corrupted
-test.t1	check	Warning	InnoDB: Index c3 is marked as corrupted
+test.t1	check	Warning	[DRY MODE] InnoDB: Index c2 is marked as corrupted
+test.t1	check	Warning	[DRY MODE] InnoDB: Index c3 is marked as corrupted
 test.t1	check	error	Corrupt
 ALTER TABLE t1 DROP INDEX c2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Warning	InnoDB: Index c3 is marked as corrupted
+test.t1	check	Warning	[DRY MODE] InnoDB: Index c3 is marked as corrupted
 test.t1	check	error	Corrupt
 ALTER TABLE t1 ADD INDEX (c2,c3);
 ERROR HY000: Index c3 is corrupted

@@ -203,6 +203,7 @@ extern "C" const char *thd_client_ip(MYSQL_THD thd);
 extern "C" LEX_CSTRING *thd_current_db(MYSQL_THD thd);
 extern "C" int thd_current_status(MYSQL_THD thd);
 extern "C" enum enum_server_command thd_current_command(MYSQL_THD thd);
+extern "C" my_bool thd_snc_check_table_dry_mode(MYSQL_THD thd);
 
 /**
   @class CSET_STRING
@@ -784,6 +785,8 @@ typedef struct system_variables
 
   vers_asof_timestamp_t vers_asof_timestamp;
   ulong vers_alter_history;
+
+  my_bool snc_check_table_dry_mode;
 } SV;
 
 /**

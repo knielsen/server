@@ -6,6 +6,8 @@
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 
+SET snc_check_table_dry_mode=OFF;
+
 --disable_query_log
 call mtr.add_suppression('InnoDB: Flagged corruption of `c[23]`');
 call mtr.add_suppression('InnoDB: Index `c[23]` .*is corrupted');

@@ -1,0 +1,53 @@
+SET @save_dbug = @@SESSION.debug_dbug;
+SET debug_dbug = '+d,dict_set_index_corrupted';
+SET snc_check_table_dry_mode=OFF;
+SHOW VARIABLES LIKE 'snc_check_table_dry_mode';
+Variable_name	Value
+snc_check_table_dry_mode	OFF
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY idx(b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index idx is marked as corrupted
+test.t1	check	error	Corrupt
+CREATE INDEX i1 ON t1(a, b);
+ERROR HY000: Index idx is corrupted
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+ERROR HY000: Index t1 is corrupted
+ALTER TABLE t1 DROP KEY idx, ADD KEY idx2 (b);
+ERROR HY000: Index idx is corrupted
+SET snc_check_table_dry_mode=ON;
+SHOW VARIABLES LIKE 'snc_check_table_dry_mode';
+Variable_name	Value
+snc_check_table_dry_mode	ON
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, KEY idx(b)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1);
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	Warning	[DRY MODE] InnoDB: Index idx is marked as corrupted
+test.t2	check	error	Corrupt
+CREATE INDEX i2 ON t2(a, b);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx` (`b`),
+  KEY `i2` (`a`,`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+a	b
+1	1
+ALTER TABLE t2 DROP KEY idx, ADD KEY idx2 (b);
+SET @@SESSION.debug_dbug = @save_dbug;
+DROP TABLE t1;
+DROP TABLE t2;

@@ -1285,6 +1285,11 @@ The following specify which files/extra groups are read (specified before remain
  if sn_order_by_row_threshold <= row estimate. (In other
  words, if sn_order_by_row_threshold > row estimate, then,
  skip evaluating the second phase of order by).
+ --snc-check-table-dry-mode 
+ Detect and report any discrepancies in internal table
+ structures, but do not mark an index or table as
+ corrupted.
+ (Defaults to on; use --skip-snc-check-table-dry-mode to disable.)
  --snc-default-lock-expiration=# 
  Default expiration time a session can hold a ServiceNow
  lock for (seconds)
@@ -1813,6 +1818,7 @@ slow-launch-time 2
 slow-query-log FALSE
 sn-order-by-limit-optimize-level 2
 sn-order-by-limit-row-threshold 300000
+snc-check-table-dry-mode TRUE
 snc-default-lock-expiration 120
 snc-enable-mdev29833 FALSE
 snc-lock-memory-target 1073741824

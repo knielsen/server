@@ -25,7 +25,7 @@ InnoDB		0 transactions not purged
 # restart: --innodb-force-recovery=6 --innodb-change-buffer-dump
 check table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Warning	InnoDB: Index 'b' contains #### entries, should be 4096.
+test.t1	check	Warning	[DRY MODE] InnoDB: Index 'b' contains #### entries, should be 4096.
 test.t1	check	error	Corrupt
 # restart
 SET GLOBAL innodb_fast_shutdown=0;

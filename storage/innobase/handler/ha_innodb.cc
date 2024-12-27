@@ -14769,6 +14769,7 @@ ha_innobase::check(
 	bool		is_ok		= true;
 	ulint		old_isolation_level;
 	dberr_t		ret;
+	my_bool		dry_mode = thd_snc_check_table_dry_mode(thd);
 
 	DBUG_ENTER("ha_innobase::check");
 	DBUG_ASSERT(thd == ha_thd());
@@ -14811,7 +14812,7 @@ ha_innobase::check(
 		clustered index, we will do so here */
 		index = dict_table_get_first_index(m_prebuilt->table);
 
-		if (!index->is_corrupted()) {
+		if (!index->is_corrupted() && !dry_mode) {
 			dict_set_corrupted(
 				index, m_prebuilt->trx, "CHECK TABLE");
 		}
@@ -14819,8 +14820,9 @@ ha_innobase::check(
 		push_warning_printf(m_user_thd,
 				    Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_INDEX_CORRUPT,
-				    "InnoDB: Index %s is marked as"
+				    "%sInnoDB: Index %s is marked as"
 				    " corrupted",
+				    dry_mode ? "[DRY MODE] " : "",
 				    index->name());
 
 		/* Now that the table is already marked as corrupted,
@@ -14864,17 +14866,19 @@ ha_innobase::check(
 						thd,
 						Sql_condition::WARN_LEVEL_WARN,
 						ER_NO_SUCH_TABLE,
-						"Table %s is encrypted but encryption service or"
+						"%sTable %s is encrypted but encryption service or"
 						" used key_id is not available. "
 						" Can't continue checking table.",
+						dry_mode ? "[DRY MODE] " : "",
 						index->table->name.m_name);
 				} else {
 					push_warning_printf(
 						thd,
 						Sql_condition::WARN_LEVEL_WARN,
 						ER_NOT_KEYFILE,
-						"InnoDB: The B-tree of"
+						"%sInnoDB: The B-tree of"
 						" index %s is corrupted.",
+						dry_mode ? "[DRY MODE] " : "",
 						index->name());
 				}
 
@@ -14895,18 +14899,27 @@ ha_innobase::check(
 			if (!index->is_primary()) {
 				m_prebuilt->index_usable = FALSE;
 				// row_mysql_lock_data_dictionary(m_prebuilt->trx);
-				dict_set_corrupted(index, m_prebuilt->trx, "dict_set_index_corrupted");
+				if (!dry_mode)
+					dict_set_corrupted(index, m_prebuilt->trx, "dict_set_index_corrupted");
 				// row_mysql_unlock_data_dictionary(m_prebuilt->trx);
 			});
 
 		if (UNIV_UNLIKELY(!m_prebuilt->index_usable)) {
-			if (index->is_corrupted()) {
+			bool is_index_corrupted= index->is_corrupted();
+
+			DBUG_EXECUTE_IF(
+				"dict_set_index_corrupted",
+				is_index_corrupted= true;
+				);
+
+			if (is_index_corrupted) {
 				push_warning_printf(
 					m_user_thd,
 					Sql_condition::WARN_LEVEL_WARN,
 					HA_ERR_INDEX_CORRUPT,
-					"InnoDB: Index %s is marked as"
+					"%sInnoDB: Index %s is marked as"
 					" corrupted",
+					dry_mode ? "[DRY MODE] " : "",
 					index->name());
 				is_ok = false;
 			} else {
@@ -14914,8 +14927,9 @@ ha_innobase::check(
 					m_user_thd,
 					Sql_condition::WARN_LEVEL_WARN,
 					HA_ERR_TABLE_DEF_CHANGED,
-					"InnoDB: Insufficient history for"
+					"%sInnoDB: Insufficient history for"
 					" index %s",
+					dry_mode ? "[DRY MODE] " : "",
 					index->name());
 			}
 			continue;
@@ -14954,12 +14968,15 @@ ha_innobase::check(
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_NOT_KEYFILE,
-				"InnoDB: The B-tree of"
+				"%sInnoDB: The B-tree of"
 				" index %s is corrupted.",
+				dry_mode ? "[DRY MODE] " : "",
 				index->name());
 			is_ok = false;
-			dict_set_corrupted(
-				index, m_prebuilt->trx, "CHECK TABLE-check index");
+
+			if (!dry_mode)
+				dict_set_corrupted(
+					index, m_prebuilt->trx, "CHECK TABLE-check index");
 		}
 
 
@@ -14970,13 +14987,16 @@ ha_innobase::check(
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_NOT_KEYFILE,
-				"InnoDB: Index '%-.200s' contains " ULINTPF
+				"%sInnoDB: Index '%-.200s' contains " ULINTPF
 				" entries, should be " ULINTPF ".",
+				dry_mode ? "[DRY MODE] " : "",
 				index->name(), n_rows, n_rows_in_table);
 			is_ok = false;
-			dict_set_corrupted(
-				index, m_prebuilt->trx,
-				"CHECK TABLE; Wrong count");
+
+			if (!dry_mode)
+				dict_set_corrupted(
+					index, m_prebuilt->trx,
+					"CHECK TABLE; Wrong count");
 		}
 	}
 
@@ -14988,9 +15008,11 @@ ha_innobase::check(
 	at every CHECK TABLE only when QUICK flag is not present. */
 
 	if (!(check_opt->flags & T_QUICK) && !btr_search_validate()) {
-		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-			     ER_NOT_KEYFILE,
-			     "InnoDB: The adaptive hash index is corrupted.");
+		push_warning_printf(thd,
+				Sql_condition::WARN_LEVEL_WARN,
+				ER_NOT_KEYFILE,
+				"%sInnoDB: The adaptive hash index is corrupted.",
+				dry_mode ? "[DRY MODE] " : "");
 		is_ok = false;
 	}
 # endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */

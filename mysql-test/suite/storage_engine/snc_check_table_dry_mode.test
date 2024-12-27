@@ -1,0 +1,47 @@
+--source include/have_innodb.inc
+
+--disable_query_log
+call mtr.add_suppression("Flagged corruption of.* in table .* in .*");
+--enable_query_log
+
+SET @save_dbug = @@SESSION.debug_dbug;
+SET debug_dbug = '+d,dict_set_index_corrupted';
+
+SET snc_check_table_dry_mode=OFF;
+SHOW VARIABLES LIKE 'snc_check_table_dry_mode';
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY idx(b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+
+CHECK TABLE t1;
+
+--error ER_INDEX_CORRUPT
+CREATE INDEX i1 ON t1(a, b);
+SHOW CREATE TABLE t1;
+
+--error ER_INDEX_CORRUPT
+SELECT * FROM t1;
+
+--error ER_INDEX_CORRUPT
+ALTER TABLE t1 DROP KEY idx, ADD KEY idx2 (b);
+
+
+
+SET snc_check_table_dry_mode=ON;
+SHOW VARIABLES LIKE 'snc_check_table_dry_mode';
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, KEY idx(b)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1);
+
+CHECK TABLE t2;
+
+CREATE INDEX i2 ON t2(a, b);
+SHOW CREATE TABLE t2;
+
+SELECT * FROM t2;
+
+ALTER TABLE t2 DROP KEY idx, ADD KEY idx2 (b);
+
+SET @@SESSION.debug_dbug = @save_dbug;
+DROP TABLE t1;
+DROP TABLE t2;

@@ -5023,6 +5023,12 @@ extern "C" enum enum_server_command thd_current_command(MYSQL_THD thd)
 }
 
 
+extern "C" my_bool thd_snc_check_table_dry_mode(MYSQL_THD thd)
+{
+  return thd->variables.snc_check_table_dry_mode;
+}
+
+
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
 {
   return(thd->slave_thread);

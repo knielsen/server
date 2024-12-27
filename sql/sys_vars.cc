@@ -3558,6 +3558,13 @@ static Sys_var_mybool Sys_snc_max_mm_tree_mem_log_limit_hits(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_mybool Sys_snc_check_table_dry_mode(
+       "snc_check_table_dry_mode",
+       "Detect and report any discrepancies in internal table structures, "
+       "but do not mark an index or table as corrupted.",
+       SESSION_VAR(snc_check_table_dry_mode),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)
