@@ -1,0 +1,31 @@
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+connection master;
+create table t1(id int);
+sync_slave_with_master;
+
+connection slave;
+set global slave_ddl_exec_mode=IDEMPOTENT;
+drop table t1;
+
+connection master;
+alter table t1 add key i1(id);
+sync_slave_with_master;
+
+--source include/check_slave_no_error.inc
+# Since we are in IDEMPOTENT mode there should be no error
+# 'Table 'test.t1' doesn't exist' on query. 
+
+connection master;
+alter table t1 drop key i1;
+sync_slave_with_master;
+
+--source include/check_slave_no_error.inc
+# Since we are in IDEMPOTENT mode there should be no error
+# 'Table 'test.t1' doesn't exist' on query. 
+
+connection master;
+drop table t1;
+
+--source include/rpl_end.inc

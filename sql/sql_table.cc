@@ -10837,9 +10837,18 @@ bool mysql_alter_table(THD *thd, const LEX_CSTRING *new_db,
 
   thd->open_options|= HA_OPEN_FOR_ALTER;
   thd->mdl_backup_ticket= 0;
+
+  if (thd->slave_thread &&
+      slave_ddl_exec_mode_options == SLAVE_EXEC_MODE_IDEMPOTENT)
+  {
+    table_list->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  }
+
   error= open_tables(thd, &table_list, &tables_opened, 0,
                      &alter_prelocking_strategy);
   thd->open_options&= ~HA_OPEN_FOR_ALTER;
+  table= table_list->table;
+  error|= table == NULL;
 
   if (unlikely(error))
   {
@@ -10861,7 +10870,6 @@ bool mysql_alter_table(THD *thd, const LEX_CSTRING *new_db,
     DBUG_RETURN(true);
   }
 
-  table= table_list->table;
   bool is_reg_table= table->s->tmp_table == NO_TMP_TABLE;
   
 #ifdef WITH_WSREP
