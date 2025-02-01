@@ -158,9 +158,9 @@ innodb_normal	CREATE TABLE `innodb_normal` (
   `b` char(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 `page_compressed`=1 `page_compression_level`=8
 alter table innodb_compressed row_format=default page_compressed=1 page_compression_level=8 key_block_size=0, algorithm=instant;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: ROW_FORMAT; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x480; More: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
 alter table innodb_compressed row_format=default page_compressed=1 page_compression_level=8 key_block_size=0, algorithm=nocopy;
-ERROR 0A000: ALGORITHM=NOCOPY is not supported. Reason: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
+ERROR 0A000: ALGORITHM=NOCOPY is not supported. Reason: ROW_FORMAT; Copy reason: COPY_HANDLER_FLAGS; Lock reason: none; Handler flags: 0x480; More: Changing table options requires the table to be rebuilt. Try ALGORITHM=INPLACE
 alter table innodb_compressed row_format=default page_compressed=1 page_compression_level=8 key_block_size=0;
 show warnings;
 Level	Code	Message

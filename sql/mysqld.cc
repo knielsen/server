@@ -471,6 +471,7 @@ ulonglong snc_max_mm_tree_mem;
 my_bool snc_max_mm_tree_mem_log_limit_hits;
 uint32 snc_master_ddl_repl_subdomain_id;
 uint32 snc_slave_ddl_repl_subdomain_id;
+uint32 snc_slave_max_synchronized_domain_id;
 my_bool snc_enable_mdev29833;
 ulong snc_min_recalc_interval;
 ulong open_files_limit, max_binlog_size;

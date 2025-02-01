@@ -3,6 +3,8 @@ include/master-slave.inc
 connection server_2;
 SET @old_parallel_threads=@@GLOBAL.slave_parallel_threads;
 SET @old_parallel_mode=@@GLOBAL.slave_parallel_mode;
+SET @old_snc_slave_max_synchronized_domain_id= @@snc_slave_max_synchronized_domain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 SET GLOBAL slave_parallel_threads=10;
 ERROR HY000: This operation cannot be performed as you have a running slave ''; run STOP SLAVE '' first
 include/stop_slave.inc
@@ -1722,6 +1724,7 @@ connection server_2;
 include/stop_slave.inc
 SET GLOBAL slave_parallel_threads=@old_parallel_threads;
 SET GLOBAL slave_parallel_mode=@old_parallel_mode;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @old_snc_slave_max_synchronized_domain_id;
 include/start_slave.inc
 SET DEBUG_SYNC= 'RESET';
 connection server_1;

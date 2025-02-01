@@ -4,6 +4,8 @@ connection master;
 RESET MASTER;
 SET @@GLOBAL.rpl_semi_sync_master_enabled = 1;
 connection slave;
+SET @old_snc_slave_max_synchronized_domain_id= @@snc_slave_max_synchronized_domain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 include/stop_slave.inc
 SET @@GLOBAL. rpl_semi_sync_slave_enabled = 1;
 include/start_slave.inc
@@ -30,6 +32,8 @@ SET @@global.gtid_slave_pos = '0-1-2';
 include/start_slave.inc
 connection master;
 INSERT INTO t1 SET a = 4;
+connection slave;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @old_snc_slave_max_synchronized_domain_id;
 connection master;
 DROP TABLE t1;
 SET @@GLOBAL. rpl_semi_sync_master_enabled = 0;

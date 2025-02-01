@@ -7,6 +7,8 @@
 
 --connection slave
 --source include/stop_slave.inc
+SET @old_snc_slave_max_synchronized_domain_id= @@snc_slave_max_synchronized_domain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 
 --connection master
 --let $datadir= `SELECT @@datadir`
@@ -50,6 +52,7 @@ SELECT * FROM t2;
 --source include/stop_slave.inc
 SET GLOBAL slave_parallel_threads=@old_parallel;
 DROP TABLE t1;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @old_snc_slave_max_synchronized_domain_id;
 --source include/start_slave.inc
 
 --connection master

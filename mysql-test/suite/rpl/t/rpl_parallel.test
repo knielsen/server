@@ -14,6 +14,8 @@
 --connection server_2
 SET @old_parallel_threads=@@GLOBAL.slave_parallel_threads;
 SET @old_parallel_mode=@@GLOBAL.slave_parallel_mode;
+SET @old_snc_slave_max_synchronized_domain_id= @@snc_slave_max_synchronized_domain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 --error ER_SLAVE_MUST_STOP
 SET GLOBAL slave_parallel_threads=10;
 --source include/stop_slave.inc
@@ -2276,6 +2278,7 @@ SELECT COUNT(*), SUM(a*100*b) FROM t7;
 --source include/stop_slave.inc
 SET GLOBAL slave_parallel_threads=@old_parallel_threads;
 SET GLOBAL slave_parallel_mode=@old_parallel_mode;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @old_snc_slave_max_synchronized_domain_id;
 --source include/start_slave.inc
 SET DEBUG_SYNC= 'RESET';
 

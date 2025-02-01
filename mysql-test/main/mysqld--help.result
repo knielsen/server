@@ -1316,12 +1316,18 @@ The following specify which files/extra groups are read (specified before remain
  Minimum time interval between stats recalc for a given
  table (seconds).
  --snc-slave-ddl-repl-subdomain-id=# 
- Execute some replicated DDL statements in out-of-order
- alternate domain which is running always behind the
- default domain. The value of
+ Deprecated variable. Assigning a value will not have any
+ effect. Execute some replicated DDL statements in
+ out-of-order alternate domain which is running always
+ behind the default domain. The value of
  snc_master_ddl_repl_subdomain_id on master should match
  the value of snc_slave_ddl_repl_subdomain_id on slave. 0
  = feature disabled.
+ --snc-slave-max-synchronized-domain-id=# 
+ Deprecated variable. Assigning a value will not have any
+ effect. Synchronize transactions in domain N with those
+ in domain 0 when N <=
+ snc_slave_max_synchronized_domain_id. 
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1827,6 +1833,7 @@ snc-max-mm-tree-mem 1073741824
 snc-max-mm-tree-mem-log-limit-hits FALSE
 snc-min-recalc-interval 10
 snc-slave-ddl-repl-subdomain-id 0
+snc-slave-max-synchronized-domain-id 100
 sort-buffer-size 2097152
 sql-mode STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 sql-safe-updates FALSE

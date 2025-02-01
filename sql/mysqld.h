@@ -238,6 +238,7 @@ extern ulonglong snc_max_mm_tree_mem;
 extern my_bool snc_max_mm_tree_mem_log_limit_hits;
 extern uint32 snc_master_ddl_repl_subdomain_id;
 extern uint32 snc_slave_ddl_repl_subdomain_id;
+extern uint32 snc_slave_max_synchronized_domain_id;
 extern my_bool snc_enable_mdev29833;
 extern ulong snc_min_recalc_interval;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
