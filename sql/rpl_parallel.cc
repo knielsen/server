@@ -3680,8 +3680,8 @@ rpl_parallel::do_event(rpl_group_info *serial_rgi, Log_event *ev,
     if (rli->mi->using_gtid != Master_info::USE_GTID_NO &&
         rli->mi->parallel_mode > SLAVE_PARALLEL_MINIMAL)
     {
-      if (snc_slave_ddl_repl_subdomain_id != 0 &&
-          snc_slave_ddl_repl_subdomain_id == gtid_ev->domain_id)
+      if (gtid_ev->domain_id != 0 && 
+          gtid_ev->domain_id <= snc_slave_max_synchronized_domain_id)
       {
         rpl_parallel_entry *main_entry=
           find(rli->sql_driver_thd->variables.gtid_domain_id, rli);

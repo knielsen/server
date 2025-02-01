@@ -7,10 +7,8 @@
 --source include/stop_slave.inc
 SET @old_parallel_mode= @@GLOBAL.slave_parallel_mode;
 SET @old_parallel_threads= @@GLOBAL.slave_parallel_threads;
-SET @old_snc_slave_ddl_repl_subdomain_id= @@GLOBAL.snc_slave_ddl_repl_subdomain_id;
 SET GLOBAL slave_parallel_mode= optimistic;
 SET GLOBAL slave_parallel_threads= 4;
-SET GLOBAL snc_slave_ddl_repl_subdomain_id= 7;
 CHANGE MASTER to master_use_gtid= slave_pos;
 
 --connection master
@@ -66,7 +64,6 @@ SELECT * FROM t1 ORDER BY a;
 --source include/stop_slave.inc
 SET GLOBAL slave_parallel_mode= @old_parallel_mode;
 SET GLOBAL slave_parallel_threads= @old_parallel_threads;
-SET GLOBAL snc_slave_ddl_repl_subdomain_id= @old_snc_slave_ddl_repl_subdomain_id;
 --source include/start_slave.inc
 
 --connection master
