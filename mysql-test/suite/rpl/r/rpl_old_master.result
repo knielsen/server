@@ -2,6 +2,8 @@ include/master-slave.inc
 [connection master]
 connection slave;
 include/stop_slave.inc
+SET @old_snc_slave_max_synchronized_domain_id= @@snc_slave_max_synchronized_domain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 connection master;
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1]
@@ -27,6 +29,7 @@ a
 include/stop_slave.inc
 SET GLOBAL slave_parallel_threads=@old_parallel;
 DROP TABLE t1;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @old_snc_slave_max_synchronized_domain_id;
 include/start_slave.inc
 connection master;
 DROP TABLE t2;
