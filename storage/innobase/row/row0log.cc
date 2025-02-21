@@ -1342,6 +1342,8 @@ row_log_table_get_pk(
 
 				if (i == ULINT_UNDEFINED) {
 					ut_ad(0);
+					LOG_CRPTN_INDEX(index->table->name, index->name) <<
+						": dict_col_get_clust_pos() failed";
 					log->error = DB_CORRUPTION;
 					goto err_exit;
 				}
@@ -1646,6 +1648,8 @@ blob_done:
 				when rebuilding the redundant row format
 				table. */
 				ut_ad(0);
+				LOG_CRPTN_INDEX(index->table->name, index->name) <<
+					": field length mismatch";
 				*error = DB_CORRUPTION;
 				return(NULL);
 			}
@@ -2281,6 +2285,8 @@ func_exit_committed:
 			in the rebuilt table if the PRIMARY KEY was
 			redefined (!same_pk). */
 			ut_ad(0);
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": PK updated, but not redefined";
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -2362,6 +2368,8 @@ func_exit_committed:
 		entry = row_build_index_entry(old_row, old_ext, index, heap);
 		if (!entry) {
 			ut_ad(0);
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": row_build_index_entry() failed";
 			return(DB_CORRUPTION);
 		}
 
@@ -2371,6 +2379,8 @@ func_exit_committed:
 		if (ROW_FOUND != row_search_index_entry(
 			    index, entry, BTR_MODIFY_TREE, &pcur, &mtr)) {
 			ut_ad(0);
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": row_search_index_entry() failed";
 			error = DB_CORRUPTION;
 			break;
 		}
@@ -2450,6 +2460,8 @@ row_log_table_apply_op(
 	switch (*mrec++) {
 	default:
 		ut_ad(0);
+		LOG_CRPTN_TABLE(log->table->name) <<
+			": wrong merge record";
 		*error = DB_CORRUPTION;
 		return(NULL);
 	case ROW_T_INSERT:
@@ -2818,8 +2830,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib::error() << "Unexpected end of temporary file for table "
-			<< index->table->name;
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": unexpected end of temporary file";
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2832,11 +2844,8 @@ corruption:
 			/* Truncate the file in order to save space. */
 			if (index->online_log->fd > 0
 			    && ftruncate(index->online_log->fd, 0) == -1) {
-				ib::error()
-					<< "\'" << index->name + 1
-					<< "\' failed with error "
-					<< errno << ":" << strerror(errno);
-
+				LOG_CRPTN_INDEX(index->table->name, index->name) <<
+					": error " << errno << ":" << strerror(errno);
 				goto corruption;
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -2883,9 +2892,8 @@ all_done:
 		if (os_file_read_no_error_handling(
 			    request, index->online_log->fd,
 			    buf, ofs, srv_sort_buf_size, 0) != DB_SUCCESS) {
-			ib::error()
-				<< "Unable to read temporary file"
-				" for table " << index->table->name;
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": Unable to read temporary file";
 			goto corruption;
 		}
 
@@ -2943,6 +2951,8 @@ all_done:
 			goto func_exit;
 		} else if (UNIV_UNLIKELY(mrec == NULL)) {
 			/* The record was not reassembled properly. */
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": The record was not reassembled properly";
 			goto corruption;
 		}
 		/* The record was previously found out to be
@@ -3605,6 +3615,8 @@ row_log_apply_op(
 		trx_id = 0;
 		break;
 	default:
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": wrong merge record";
 corrupted:
 		ut_ad(0);
 		*error = DB_CORRUPTION;
@@ -3635,6 +3647,8 @@ corrupted:
 		in a secondary index, which is what online index
 		creation is used for. Therefore, the log file must be
 		corrupted. */
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": externally stored fields";
 		goto corrupted;
 	}
 
@@ -3725,8 +3739,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib::error() << "Unexpected end of temporary file for index "
-			<< index->name;
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": Unexpected end of temporary file";
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -3739,11 +3753,8 @@ corruption:
 			/* Truncate the file in order to save space. */
 			if (index->online_log->fd > 0
 			    && ftruncate(index->online_log->fd, 0) == -1) {
-				ib::error()
-					<< "\'" << index->name + 1
-					<< "\' failed with error "
-					<< errno << ":" << strerror(errno);
-
+				LOG_CRPTN_INDEX(index->table->name, index->name) <<
+					": error " << errno << ":" << strerror(errno);
 				goto corruption;
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -3785,9 +3796,8 @@ all_done:
 		if (os_file_read_no_error_handling(
 			    request, index->online_log->fd,
 			    buf, ofs, srv_sort_buf_size, 0) != DB_SUCCESS) {
-			ib::error()
-				<< "Unable to read temporary file"
-				" for index " << index->name;
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": Unable to read temporary file";
 			goto corruption;
 		}
 
@@ -3834,6 +3844,8 @@ all_done:
 			goto func_exit;
 		} else if (UNIV_UNLIKELY(mrec == NULL)) {
 			/* The record was not reassembled properly. */
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": The record was not reassembled properly";
 			goto corruption;
 		}
 		/* The record was previously found out to be

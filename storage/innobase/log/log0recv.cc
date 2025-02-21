@@ -1164,7 +1164,7 @@ static dberr_t recv_log_format_0_recover(lsn_t lsn, bool crypt)
 	if (log_block_calc_checksum_format_0(buf)
 	    != log_block_get_checksum(buf)
 	    && !log_crypt_101_read_block(buf)) {
-		ib::error() << NO_UPGRADE_RECOVERY_MSG
+		LOG_CRPTN << NO_UPGRADE_RECOVERY_MSG
 			<< ", and it appears corrupted.";
 		return(DB_CORRUPTION);
 	}
@@ -1219,7 +1219,7 @@ recv_find_max_checkpoint(ulint* max_field)
 		: 0;
 	if (log_sys.log.format != log_t::FORMAT_3_23
 	    && !recv_check_log_header_checksum(buf)) {
-		ib::error() << "Invalid redo log header checksum.";
+		LOG_CRPTN << "Invalid redo log header checksum.";
 		return(DB_CORRUPTION);
 	}
 
@@ -3557,7 +3557,7 @@ recv_init_crash_recovery_spaces(bool rescan, bool& missing_tablespace)
 			fil_names_dirty(rs.second.space);
 			rs.second.space->enable_lsn = rs.second.enable_lsn;
 		} else if (rs.second.name == "") {
-			ib::error() << "Missing MLOG_FILE_NAME"
+			LOG_CRPTN << "Missing MLOG_FILE_NAME"
 				" or MLOG_FILE_DELETE"
 				" before MLOG_CHECKPOINT for tablespace "
 				<< rs.first;

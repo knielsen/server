@@ -217,9 +217,8 @@ row_ins_sec_index_entry_by_modify(
 		ut_a(update->n_fields == 0);
 		ut_ad(!dict_index_is_online_ddl(cursor->index));
 		if (cursor->index->is_committed()) {
-			ib::error() << "Table " << cursor->index->table->name
-				<< " has corrupted index "
-				<< cursor->index->name;
+			LOG_CRPTN_INDEX(cursor->index->table->name, cursor->index->name) <<
+				": not delete marked record";
 			return DB_CORRUPTION;
 		}
 		return DB_SUCCESS;

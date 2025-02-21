@@ -1684,6 +1684,7 @@ trx_commit_for_mysql(
 		break;
 	}
 	ut_error;
+	LOG_CRPTN << "Transaction " << trx->id << " has unknown state " << (int) trx->state;
 	return(DB_CORRUPTION);
 }
 

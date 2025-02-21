@@ -457,5 +457,22 @@ private:
 
 #include "ut0ut.ic"
 
+#define LOG_CRPTN ib::error() << "[crptn] " << __FILE__ << ":" << __LINE__ << " (" << __func__ << "): " << std::dec
+#define LOG_CRPTN_INDEX(TABLE_NAME, INDEX_NAME) \
+	LOG_CRPTN << "Table " << TABLE_NAME \
+				<< " has corrupted index " \
+				<< INDEX_NAME
+#define LOG_CRPTN_TABLE(TABLE_NAME) \
+	LOG_CRPTN << "Table " << TABLE_NAME << " corrupted"
+#define LOG_CRPTN_FILE(FILE_NAME) \
+	LOG_CRPTN << "File " << FILE_NAME << " corrupted"
+// PAGE_ID displayed as [page id: space=0, page number=0]
+#define LOG_CRPTN_PAGE(PAGE_ID) \
+	LOG_CRPTN << "Page " << PAGE_ID  << " corrupted"
+#define LOG_CRPTN_INDEX_PAGE(TABLE_NAME, INDEX_NAME, PAGE_ID) \
+	LOG_CRPTN_INDEX(TABLE_NAME, INDEX_NAME) << PAGE_ID
+#define LOG_CRPTN_INDEX_TRX(TABLE_NAME, INDEX_NAME, TRX) \
+	LOG_CRPTN_INDEX(TABLE_NAME, INDEX_NAME) << " in transaction " << TRX->id
+#define LOG_CRPTN_SPACE(SPACE) \
+	LOG_CRPTN << std::hex << "Space " << SPACE << " corruption"
 #endif
-

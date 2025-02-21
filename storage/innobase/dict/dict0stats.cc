@@ -2260,6 +2260,15 @@ dict_stats_update_persistent(
 		/* Table definition is corrupt */
 		dict_stats_empty_table(table, true);
 
+		if (index == NULL) {
+			LOG_CRPTN_TABLE(table->name) <<
+				": dict_table_get_first_index() failed";
+		} else if (index->is_corrupted()) {
+			LOG_CRPTN_INDEX(table->name, index->name);
+		} else {
+			LOG_CRPTN_INDEX(table->name, index->name) <<
+				": index type: " << index->type;
+		}
 		return(DB_CORRUPTION);
 	}
 
@@ -2462,7 +2471,12 @@ dict_stats_report_error(dict_table_t* table, bool defragment)
 			   << (table->corrupted
 			       ? " is corrupted."
 			       : " cannot be decrypted.");
-		err = table->corrupted ? DB_CORRUPTION : DB_DECRYPTION_FAILED;
+		if (table->corrupted) {
+			LOG_CRPTN_TABLE(table->name);
+			err = DB_CORRUPTION;
+		} else {
+			err = DB_DECRYPTION_FAILED;
+		}
 	}
 
 	dict_stats_empty_table(table, defragment);

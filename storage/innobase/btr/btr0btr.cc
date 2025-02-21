@@ -370,9 +370,14 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	if (!fil_page_index_page_check(page) || page_has_siblings(page)) {
+	if (!fil_page_index_page_check(page)) {
+		LOG_CRPTN_INDEX_PAGE(table->name, index->name, page_id) <<
+			"fil_page_index_page_check() failed";
 		err = DB_CORRUPTION;
-
+	} else if (page_has_siblings(page)) {
+		LOG_CRPTN_INDEX_PAGE(table->name, index->name, page_id) <<
+			": page has siblings";
+		err = DB_CORRUPTION;
 	} else if (dict_index_is_clust(index)) {
 		bool	page_is_compact_format;
 
@@ -380,6 +385,9 @@ btr_root_adjust_on_import(
 
 		/* Check if the page format and table format agree. */
 		if (page_is_compact_format != dict_table_is_comp(table)) {
+			LOG_CRPTN_INDEX_PAGE(table->name, index->name, page_id) <<
+				": page compact: " << page_is_compact_format <<
+				"; table compact: " << dict_table_is_comp(table);
 			err = DB_CORRUPTION;
 		} else {
 			/* Check that the table flags and the tablespace
@@ -397,6 +405,9 @@ btr_root_adjust_on_import(
 				mutex_exit(&fil_system.mutex);
 				err = DB_SUCCESS;
 			} else {
+				LOG_CRPTN_INDEX(table->name, index->name) <<
+					": table flags: " << tf <<
+					"; space flags: " << sf;
 				err = DB_CORRUPTION;
 			}
 		}
@@ -413,6 +424,9 @@ btr_root_adjust_on_import(
 			FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
 			+ page, page_zip, table->space_id))) {
 
+		LOG_CRPTN_INDEX_PAGE(table->name, index->name, page_id) <<
+			": btr_root_fseg_adjust_on_import() for PAGE_BTR_SEG_LEAF or "
+			"PAGE_BTR_SEG_TOP failed";
 		err = DB_CORRUPTION;
 	}
 
@@ -5340,6 +5354,8 @@ btr_validate_index(
 
 	if (!root) {
 		mtr_commit(&mtr);
+		LOG_CRPTN_INDEX_TRX(index->table->name, index->name, trx) <<
+			": btr_root_get() failed";
 		return DB_CORRUPTION;
 	}
 
@@ -5349,6 +5365,8 @@ btr_validate_index(
 	for (ulint i = 0; i <= n; ++i) {
 
 		if (!btr_validate_level(index, trx, n - i, lockout)) {
+			LOG_CRPTN_INDEX_TRX(index->table->name, index->name, trx) <<
+				": btr_validate_level(" << (n - i) << ") failed";
 			err = DB_CORRUPTION;
 		}
 	}

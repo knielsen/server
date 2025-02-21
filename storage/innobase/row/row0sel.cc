@@ -4340,6 +4340,7 @@ row_search_mvcc(
 	} else if (!prebuilt->index_usable) {
 		DBUG_RETURN(DB_MISSING_HISTORY);
 	} else if (prebuilt->index->is_corrupted()) {
+		LOG_CRPTN_INDEX(prebuilt->index->table->name, prebuilt->index->name);
 		DBUG_RETURN(DB_CORRUPTION);
 	}
 
@@ -4901,13 +4902,11 @@ wrong_offs:
 					btr_pcur_get_btr_cur(pcur))->page
 					.buf_fix_count;
 
-			ib::error() << "Index corruption: rec offs "
-				<< page_offset(rec) << " next offs "
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": rec offs " << page_offset(rec) << " next offs "
 				<< next_offs << ", page no "
 				<< page_get_page_no(page_align(rec))
-				<< ", index " << index->name
-				<< " of table " << index->table->name
-				<< ". Run CHECK TABLE. You may need to"
+				<< "). Run CHECK TABLE. You may need to"
 				" restore from a backup, or dump + drop +"
 				" reimport the table.";
 			ut_ad(0);
@@ -5723,6 +5722,8 @@ next_rec:
 				btr_pcur_move_to_next_page(pcur, &mtr);
 				if (UNIV_UNLIKELY(btr_pcur_get_block(pcur)
 						  == block)) {
+					LOG_CRPTN_INDEX(index->table->name, index->name) <<
+						": btr_pcur_get_block() returned same next blcok";
 					err = DB_CORRUPTION;
 					goto lock_wait_or_error;
 				}

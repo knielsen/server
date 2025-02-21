@@ -405,8 +405,8 @@ static dberr_t btr_cur_instant_init_low(dict_index_t* index, mtr_t* mtr)
 	const fil_space_t* space = index->table->space;
 	if (!space) {
 unreadable:
-		ib::error() << "Table " << index->table->name
-			    << " has an unreadable root page";
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": unreadable root page";
 		index->table->corrupted = true;
 		return DB_CORRUPTION;
 	}
@@ -458,8 +458,8 @@ unreadable:
 			return DB_SUCCESS;
 		}
 
-		ib::error() << "Table " << index->table->name
-			    << " is missing instant ALTER metadata";
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": missing instant ALTER metadata";
 		index->table->corrupted = true;
 		return DB_CORRUPTION;
 	}
@@ -467,8 +467,8 @@ unreadable:
 	if ((info_bits & ~REC_INFO_DELETED_FLAG) != REC_INFO_MIN_REC_FLAG
 	    || (comp && rec_get_status(rec) != REC_STATUS_INSTANT)) {
 incompatible:
-		ib::error() << "Table " << index->table->name
-			<< " contains unrecognizable instant ALTER metadata";
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": unrecognizable instant ALTER metadata";
 		index->table->corrupted = true;
 		return DB_CORRUPTION;
 	}
@@ -664,9 +664,14 @@ btr_cur_instant_init(dict_table_t* table)
 	mtr_t		mtr;
 	dict_index_t*	index = dict_table_get_first_index(table);
 	mtr.start();
-	dberr_t	err = index
-		? btr_cur_instant_init_low(index, &mtr)
-		: DB_CORRUPTION;
+	dberr_t	err;
+	if (index) {
+		err = btr_cur_instant_init_low(index, &mtr);
+	} else {
+		LOG_CRPTN_INDEX(table->name, ": undefined)") <<
+			": dict_table_get_first_index() failed";
+		err = DB_CORRUPTION;
+	}
 	mtr.commit();
 	return(err);
 }

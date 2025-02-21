@@ -544,6 +544,9 @@ protected:
 };
 
 /** Determine the page size to use for traversing the tablespace
+
+Test: innodb.instant_alter_extend,debug,dynamic,innodb,utf8
+
 @param file_size size of the tablespace file in bytes
 @param block contents of the first page in the tablespace file.
 @retval DB_SUCCESS or error code. */
@@ -558,7 +561,9 @@ AbstractCallback::init(
 	if (!fil_space_t::is_valid_flags(m_space_flags, true)) {
 		ulint cflags = fsp_flags_convert_from_101(m_space_flags);
 		if (cflags == ULINT_UNDEFINED) {
-			ib::error() << "Invalid FSP_SPACE_FLAGS="
+			// page.id displayed as [page id: space=0, page number=0]
+			LOG_CRPTN << block->page.id <<
+				": Invalid FSP_SPACE_FLAGS="
 				<< ib::hex(m_space_flags);
 			return(DB_CORRUPTION);
 		}
@@ -573,7 +578,8 @@ AbstractCallback::init(
 
 	if (logical_size != srv_page_size) {
 
-		ib::error() << "Page size " << logical_size
+		LOG_CRPTN << block->page.id <<
+			": page size " << logical_size
 			<< " of ibd file is not the same as the server page"
 			" size " << srv_page_size;
 
@@ -581,7 +587,8 @@ AbstractCallback::init(
 
 	} else if (file_size & (physical_size - 1)) {
 
-		ib::error() << "File size " << file_size << " is not a"
+		LOG_CRPTN << block->page.id <<
+			": file size " << file_size << " is not a"
 			" multiple of the page size "
 			<< physical_size;
 
@@ -677,6 +684,9 @@ dberr_t FetchIndexRootPages::operator()(buf_block_t* block) UNIV_NOTHROW
 					"file contains 0x%x.",
 					unsigned(expected),
 					unsigned(m_space_flags));
+				LOG_CRPTN << block->page.id <<
+				  ": expected FSP_SPACE_FLAGS:" << expected <<
+				  "; got: " << m_space_flags;
 				return(DB_CORRUPTION);
 			}
 		}
@@ -699,7 +709,7 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 
 	if (cfg->m_n_indexes == 0) {
 
-		ib::error() << "No B+Tree found in tablespace";
+		LOG_CRPTN << "No B+Tree found in tablespace";
 
 		return(DB_CORRUPTION);
 	}
@@ -1555,6 +1565,7 @@ IndexPurge::next() UNIV_NOTHROW
 			case 0:
 			case 1:
 			case FIL_NULL:
+				LOG_CRPTN << "Purge next_page corrupted";
 				return DB_CORRUPTION;
 			}
 
@@ -1564,18 +1575,26 @@ IndexPurge::next() UNIV_NOTHROW
 				block->zip_size(), BTR_MODIFY_LEAF, index,
 				&m_mtr);
 
-			if (UNIV_UNLIKELY(!next_block
-					  || !fil_page_index_page_check(
-						  next_block->frame)
-					  || !!dict_index_is_spatial(index)
-					  != (fil_page_get_type(
-						      next_block->frame)
-					      == FIL_PAGE_RTREE)
-					  || page_is_comp(next_block->frame)
-					  != page_is_comp(block->frame)
-					  || btr_page_get_prev(
-						  next_block->frame)
-					  != block->page.id.page_no())) {
+			static const char *msg = "Purge next_block corrupted";
+			if (UNIV_UNLIKELY(!next_block)) {
+				LOG_CRPTN << msg << " (empty next_block";
+				return DB_CORRUPTION;
+			}
+			if (!fil_page_index_page_check(next_block->frame)) {
+				LOG_CRPTN << msg << " (fil_page_index_page_check() failed";
+				return DB_CORRUPTION;
+			}
+			if (!!dict_index_is_spatial(index)
+				!= (fil_page_get_type(next_block->frame) == FIL_PAGE_RTREE)) {
+				LOG_CRPTN << msg << " (next_block spatial status is different";
+				return DB_CORRUPTION;
+			}
+			if (page_is_comp(next_block->frame) != page_is_comp(block->frame)) {
+				LOG_CRPTN << msg << " (next_block redundant status is different";
+				return DB_CORRUPTION;
+			}
+			if (btr_page_get_prev(next_block->frame) != block->page.id.page_no()) {
+				LOG_CRPTN << msg << " (next_block prev pointer is wrong";
 				return DB_CORRUPTION;
 			}
 
@@ -1663,6 +1682,9 @@ PageConverter::adjust_cluster_index_blob_column(
 			" in the cluster index %s",
 			i, len, m_cluster_index->name());
 
+		LOG_CRPTN_INDEX(m_cluster_index->table->name, m_cluster_index->name) <<
+			": externally stored column(" << i <<
+			") has a reference length of " << len;
 		return(DB_CORRUPTION);
 	}
 
@@ -1870,11 +1892,12 @@ PageConverter::update_index_page(
 		row_index_t*	index = find_index(id);
 
 		if (UNIV_UNLIKELY(!index)) {
-			ib::error() << "Page for tablespace " << m_space
+			LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+				": page for tablespace " << m_space
 				<< " is index page with id " << id
 				<< " but that index is not found from"
-				<< " configuration file. Current index name "
-				<< m_index->m_name << " and id " <<  m_index->m_id;
+				<< " configuration file; current index id "
+				<<  m_index->m_id;
 			m_index = 0;
 			return(DB_CORRUPTION);
 		}
@@ -1974,6 +1997,8 @@ PageConverter::update_index_page(
 			// TODO: We should relax this and skip secondary
 			// indexes. Mark them as corrupt because they can
 			// always be rebuilt.
+			LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+				std::hex << ": non-root page " << page << "is empty";
 			return(DB_CORRUPTION);
 		}
 
@@ -1994,6 +2019,8 @@ PageConverter::update_header(
 	/* Check for valid header */
 	switch (fsp_header_get_space_id(get_frame(block))) {
 	case 0:
+		LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+				": " << block->page.id << ": fsp_header_get_space_id() failed";
 		return(DB_CORRUPTION);
 	case ULINT_UNDEFINED:
 		ib::warn() << "Space id check in the header failed: ignored";
@@ -2047,6 +2074,8 @@ PageConverter::update_page(
 		before we can do any thing with Btree pages. */
 
 		if (is_compressed_table() && !buf_zip_decompress(block, TRUE)) {
+			LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+					": " << block->page.id << ": compression mismatch";
 			return(DB_CORRUPTION);
 		}
 
@@ -2062,6 +2091,8 @@ PageConverter::update_page(
 
 	case FIL_PAGE_TYPE_SYS:
 		/* This is page 0 in the system tablespace. */
+		LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+			": " << block->page.id << ": type is FIL_PAGE_TYPE_SYS";
 		return(DB_CORRUPTION);
 
 	case FIL_PAGE_TYPE_XDES:
@@ -2086,7 +2117,8 @@ PageConverter::update_page(
 		return(err);
 	}
 
-	ib::warn() << "Unknown page type (" << page_type << ")";
+	LOG_CRPTN_INDEX(m_cluster_index->table->name, m_index->m_name) <<
+		": " << block->page.id << ": unknown page type" << page_type;
 
 	return(DB_CORRUPTION);
 }
@@ -2277,8 +2309,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 			err = btr_root_adjust_on_import(index);
 		} else {
-			ib::warn() << "Skip adjustment of root pages for"
-				" index " << index->name << ".";
+			LOG_CRPTN_INDEX(table->name, index->name) <<
+				": skip adjustment of root pages";
 
 			err = DB_CORRUPTION;
 		}
@@ -2651,6 +2683,10 @@ row_import_read_index_data(
 				"Index name length (" ULINTPF ") is too long, "
 				"the meta-data is corrupt", len);
 
+			LOG_CRPTN_TABLE(cfg->m_table_name) <<
+				": index name length " << len << " is too long, "
+				"the meta-data is corrupt";
+
 			return(DB_CORRUPTION);
 		}
 
@@ -2725,6 +2761,8 @@ row_import_read_indexes(
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			"Number of indexes in meta-data file is 0");
 
+		LOG_CRPTN_TABLE(cfg->m_table_name) <<
+			": number of indexes in meta-data file is 0";
 		return(DB_CORRUPTION);
 
 	} else if (cfg->m_n_indexes > 1024) {
@@ -2734,6 +2772,9 @@ row_import_read_indexes(
 			ULINTPF, cfg->m_n_indexes);
 		cfg->m_n_indexes = 0;
 
+		LOG_CRPTN_TABLE(cfg->m_table_name) <<
+			": number of indexes in meta-data file is too high: " <<
+			cfg->m_n_indexes;
 		return(DB_CORRUPTION);
 	}
 
@@ -2840,6 +2881,8 @@ row_import_read_columns(
 				"Column name length " ULINTPF ", is invalid",
 				len);
 
+			LOG_CRPTN_TABLE(cfg->m_table_name) <<
+				": column name length " << len << " is invalid";
 			return(DB_CORRUPTION);
 		}
 
@@ -3035,6 +3078,8 @@ row_import_read_v1(
 			ER_TABLE_SCHEMA_MISMATCH,
 			"Invalid table flags: " ULINTPF, cfg->m_flags);
 
+		LOG_CRPTN_TABLE(cfg->m_table_name) <<
+			": invalid table flags: " << cfg->m_flags;
 		return(DB_CORRUPTION);
 	}
 
@@ -3521,10 +3566,10 @@ fil_iterate(
 
 			if (page_no != block->page.id.page_no()) {
 page_corrupted:
-				ib::warn() << callback.filename()
-					   << ": Page " << (offset / size)
+				LOG_CRPTN_FILE(callback.filename())
+					   << ": page " << (offset / size)
 					   << " at offset " << offset
-					   << " looks corrupted.";
+					   << " looks corrupted";
 				err = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -4198,6 +4243,8 @@ row_import_for_mysql(
 	dict_index_t*	index = dict_table_get_first_index(table);
 
 	if (!dict_index_is_clust(index)) {
+		LOG_CRPTN_INDEX(table->name, index->name) <<
+			": index is not clustered";
 		return(row_import_error(prebuilt, trx, DB_CORRUPTION));
 	}
 

@@ -2169,7 +2169,7 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			ib::error() << err_msg;
+			LOG_CRPTN << err_msg;
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -2397,10 +2397,8 @@ dict_load_indexes(
 			for drop table */
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-				ib::warn() << "Cannot load table "
-					<< table->name
-					<< " because it has no indexes in"
-					" InnoDB internal data dictionary.";
+				LOG_CRPTN_TABLE(table->name) <<
+					": no indexes in InnoDB internal data dictionary";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -2444,14 +2442,11 @@ dict_load_indexes(
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 
-				ib::warn() << "Failed to load the"
-					" clustered index for table "
-					<< table->name
-					<< " because of the following error: "
-					<< err_msg << "."
+				LOG_CRPTN_INDEX(table->name, "clustered index")
+					<< ": " << err_msg << "."
 					" Refusing to load the rest of the"
 					" indexes (if any) and the whole table"
-					" altogether.";
+					" altogether";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -2461,7 +2456,7 @@ dict_load_indexes(
 			/* Skip delete-marked records. */
 			goto next_rec;
 		} else if (err_msg) {
-			ib::error() << err_msg;
+			LOG_CRPTN_TABLE(table->name) << err_msg;
 			if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
 				goto next_rec;
 			}
@@ -2549,9 +2544,8 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			ib::error() << "Trying to load index " << index->name
-				<< " for table " << table->name
-				<< ", but the first index is not clustered!";
+			LOG_CRPTN_INDEX(table->name, index->name)
+				<< ": first index is not clustered";
 
 			goto corrupted;
 		} else if (dict_is_sys_table(table->id)
@@ -2980,6 +2974,8 @@ err_exit:
 
 	if (err == DB_SUCCESS && table->is_readable()) {
 		if (table->space && !fil_space_get_size(table->space_id)) {
+			LOG_CRPTN_TABLE(table->name) <<
+				": fil_space_get_size() failed";
 corrupted:
 			table->corrupted = true;
 			table->file_unreadable = true;
@@ -3005,6 +3001,8 @@ corrupted:
 				    != FIL_PAGE_TYPE_INSTANT);
 			mtr.commit();
 			if (corrupted) {
+				LOG_CRPTN_TABLE(table->name) <<
+					": corrupted check failed";
 				goto corrupted;
 			}
 

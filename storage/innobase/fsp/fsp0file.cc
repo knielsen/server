@@ -346,9 +346,8 @@ Datafile::read_first_page(bool read_only_mode)
 		if (!fil_space_t::is_valid_flags(m_flags, m_space_id)) {
 			ulint cflags = fsp_flags_convert_from_101(m_flags);
 			if (cflags == ULINT_UNDEFINED) {
-				ib::error()
-					<< "Invalid flags " << ib::hex(m_flags)
-					<< " in " << m_filepath;
+				LOG_CRPTN_FILE(m_filepath)
+					<< ": invalid flags " << ib::hex(m_flags);
 				return(DB_CORRUPTION);
 			} else {
 				m_flags = cflags;
@@ -359,8 +358,8 @@ Datafile::read_first_page(bool read_only_mode)
 	const size_t physical_size = fil_space_t::physical_size(m_flags);
 
 	if (physical_size > page_size) {
-		ib::error() << "File " << m_filepath
-			<< " should be longer than "
+		LOG_CRPTN_FILE(m_filepath)
+			<< ": should be longer than "
 			<< page_size << " bytes";
 		return(DB_CORRUPTION);
 	}
@@ -467,6 +466,8 @@ Datafile::validate_for_recovery()
 		}
 
 		if (restore_from_doublewrite()) {
+			LOG_CRPTN_FILE(m_filepath) <<
+				": restore_from_doublewrite() failed";
 			return(DB_CORRUPTION);
 		}
 
@@ -516,9 +517,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 	if (error_txt != NULL) {
 err_exit:
-		ib::info() << error_txt << " in datafile: " << m_filepath
-			<< ", Space ID:" << m_space_id  << ", Flags: "
-			<< m_flags;
+		LOG_CRPTN_FILE(m_filepath) <<
+			"space " << std::hex << m_space_id <<
+			" (" << error_txt << "; flags: " << m_flags;
 		m_is_valid = false;
 		free_first_page();
 		return(DB_CORRUPTION);
@@ -600,9 +601,12 @@ err_exit:
 
 		free_first_page();
 
-		return(is_predefined_tablespace(m_space_id)
-		       ? DB_CORRUPTION
-		       : DB_TABLESPACE_EXISTS);
+		if (is_predefined_tablespace(m_space_id)) {
+			LOG_CRPTN_FILE(m_filepath) << "space " << m_space_id <<
+				" (is_predefined_tablespace() failed";
+				return DB_CORRUPTION;
+		}
+		return DB_TABLESPACE_EXISTS;
 	}
 
 	return(DB_SUCCESS);
@@ -621,8 +625,7 @@ Datafile::find_space_id()
 	file_size = os_file_get_size(m_handle);
 
 	if (file_size == (os_offset_t) -1) {
-		ib::error() << "Could not get file size of datafile '"
-			<< m_filepath << "'";
+		LOG_CRPTN_FILE(m_filepath) << ": could not get file size";
 		return(DB_CORRUPTION);
 	}
 
@@ -763,6 +766,7 @@ Datafile::find_space_id()
 		}
 	}
 
+	LOG_CRPTN_FILE(m_filepath);
 	return(DB_CORRUPTION);
 }
 

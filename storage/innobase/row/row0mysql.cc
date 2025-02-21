@@ -1325,6 +1325,8 @@ row_mysql_get_table_status(
 					table->name.m_name, table->space);
 			}
 
+			LOG_CRPTN_TABLE(table->name) <<
+				": table in tablespace corrupted";
 			err = DB_CORRUPTION;
 		}
 	} else {

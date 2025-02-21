@@ -1369,6 +1369,10 @@ dict_check_if_system_table_exists(
 
 	} else if (UT_LIST_GET_LEN(sys_table->indexes) != num_indexes
 		   || sys_table->n_cols != num_fields) {
+		LOG_CRPTN_TABLE(tablename) <<
+			": indexes: " << UT_LIST_GET_LEN(sys_table->indexes) <<
+			", need: " << num_indexes << "; cols: " <<
+			sys_table->n_cols << ", need: " << num_fields;
 		error = DB_CORRUPTION;
 
 	} else {
@@ -1444,10 +1448,12 @@ dict_create_or_check_foreign_constraint_tables(void)
 	/* Check which incomplete table definition to drop. */
 
 	if (sys_foreign_err == DB_CORRUPTION) {
+		LOG_CRPTN_TABLE("SYS_FOREIGN");
 		row_drop_table_after_create_fail("SYS_FOREIGN", trx);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
+		LOG_CRPTN_TABLE("SYS_FOREIGN_COLS");
 		row_drop_table_after_create_fail("SYS_FOREIGN_COLS", trx);
 	}
 
@@ -1568,6 +1574,7 @@ dict_create_or_check_sys_virtual()
 	/* Check which incomplete table definition to drop. */
 
 	if (err == DB_CORRUPTION) {
+		LOG_CRPTN_TABLE("SYS_VIRTUAL");
 		row_drop_table_after_create_fail("SYS_VIRTUAL", trx);
 	}
 
@@ -2096,10 +2103,12 @@ dict_create_or_check_sys_tablespace(void)
 	/* Check which incomplete table definition to drop. */
 
 	if (sys_tablespaces_err == DB_CORRUPTION) {
+		LOG_CRPTN_TABLE("SYS_TABLESPACES");
 		row_drop_table_after_create_fail("SYS_TABLESPACES", trx);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
+		LOG_CRPTN_TABLE("SYS_DATAFILES");
 		row_drop_table_after_create_fail("SYS_DATAFILES", trx);
 	}
 

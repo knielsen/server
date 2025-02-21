@@ -2892,6 +2892,8 @@ wait_again:
 			crypt_block ? &crypt_block[2 * srv_sort_buf_size] : NULL , \
 					space);				\
 		if (UNIV_UNLIKELY(!b2 || ++of->n_rec > file->n_rec)) {	\
+			LOG_CRPTN_INDEX(INDEX->table->name, INDEX->name) << \
+					": row_merge_write_rec() failed"; \
 			goto corrupt;					\
 		}							\
 		b##N = row_merge_read_rec(&block[N * srv_sort_buf_size],\
@@ -2903,6 +2905,8 @@ wait_again:
 									\
 		if (UNIV_UNLIKELY(!b##N)) {				\
 			if (mrec##N) {					\
+				LOG_CRPTN_INDEX(INDEX->table->name, INDEX->name) << \
+					": row_merge_read() failed 3"; \
 				goto corrupt;				\
 			}						\
 			AT_END;						\
@@ -2977,6 +2981,9 @@ row_merge_blocks(
 	    !row_merge_read(file->fd, *foffs1, &block[srv_sort_buf_size],
 			    crypt_block ? &crypt_block[srv_sort_buf_size] : NULL,
 			    space)) {
+		LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+				": row_merge_read() failed 1";
+
 corrupt:
 		mem_heap_free(heap);
 		DBUG_RETURN(DB_CORRUPTION);
@@ -3001,6 +3008,8 @@ corrupt:
 
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
+		LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+				": row_merge_read() failed 2";
 
 		goto corrupt;
 	}
@@ -3042,7 +3051,12 @@ done1:
 		b2, of->fd, &of->offset,
 		crypt_block ? &crypt_block[2 * srv_sort_buf_size] : NULL,
 		space);
-	DBUG_RETURN(b2 ? DB_SUCCESS : DB_CORRUPTION);
+	if (b2) {
+		DBUG_RETURN(DB_SUCCESS);
+	}
+	LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+			": row_merge_write_eof() failed";
+	DBUG_RETURN(DB_CORRUPTION);
 }
 
 /** Copy a block of index entries.
@@ -3231,6 +3245,8 @@ row_merge(
 		if (!row_merge_blocks_copy(dup->index, file, block,
 					   &foffs0, &of, stage,
 					   crypt_block, space)) {
+			LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+				": row_merge_blocks_copy() failed 1";
 			return(DB_CORRUPTION);
 		}
 	}
@@ -3249,6 +3265,8 @@ row_merge(
 		if (!row_merge_blocks_copy(dup->index, file, block,
 					   &foffs1, &of, stage,
 					   crypt_block, space)) {
+			LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+				": row_merge_blocks_copy() failed 2";
 			return(DB_CORRUPTION);
 		}
 	}
@@ -3256,6 +3274,8 @@ row_merge(
 	ut_ad(foffs1 == file->offset);
 
 	if (UNIV_UNLIKELY(of.n_rec != file->n_rec)) {
+		LOG_CRPTN_INDEX(dup->index->table->name, dup->index->name) <<
+			": n_rec mismatch";
 		return(DB_CORRUPTION);
 	}
 
@@ -3575,6 +3595,8 @@ row_merge_insert_index_tuples(
 		dtuple = NULL;
 
 		if (!row_merge_read(fd, foffs, block, crypt_block, space)) {
+			LOG_CRPTN_INDEX(index->table->name, index->name) <<
+				": row_merge_read() failed";
 			error = DB_CORRUPTION;
 			goto err_exit;
 		} else {
@@ -3610,6 +3632,8 @@ row_merge_insert_index_tuples(
 			if (UNIV_UNLIKELY(!b)) {
 				/* End of list, or I/O error */
 				if (mrec) {
+					LOG_CRPTN_INDEX(index->table->name, index->name) <<
+						": row_merge_read_rec() failed";
 					error = DB_CORRUPTION;
 				}
 				break;
@@ -4682,6 +4706,8 @@ row_merge_build_indexes(
 					trx, dup, new_table, opt_doc_id_size,
 					old_table->space->zip_size(),
 					&psort_info, &merge_info)) {
+				LOG_CRPTN_TABLE(new_table->name) <<
+					": row_fts_psort_info_init() failed";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}

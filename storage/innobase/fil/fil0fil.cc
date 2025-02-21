@@ -3179,8 +3179,14 @@ fil_ibd_open(
 	/* Table flags can be ULINT_UNDEFINED if
 	dict_tf_to_fsp_flags_failure is set. */
 	if (flags == ULINT_UNDEFINED) {
+		if (err) {
+			LOG_CRPTN_TABLE(tablename) <<
+				": undefined flags";
+		}
 corrupted:
-		if (err) *err = DB_CORRUPTION;
+		if (err) {
+			*err = DB_CORRUPTION;
+		}
 		return NULL;
 	}
 
@@ -3276,8 +3282,16 @@ corrupted:
 	First, bail out if no tablespace files were found. */
 	if (valid_tablespaces_found == 0) {
 		os_file_get_last_error(true);
-		ib::error() << "Could not find a valid tablespace file for `"
-			<< tablename << "`. " << TROUBLESHOOT_DATADICT_MSG;
+		if (err) {
+			LOG_CRPTN_TABLE(tablename) <<
+				": Could not find a valid tablespace file. "
+					<< TROUBLESHOOT_DATADICT_MSG;
+		}
+		else
+		{
+			ib::error() << "Could not find a valid tablespace file for `"
+				<< tablename << "`. " << TROUBLESHOOT_DATADICT_MSG;
+		}
 		goto corrupted;
 	}
 	if (!validate) {
@@ -3327,9 +3341,23 @@ corrupted:
 
 			/* Having established that, this is an easy way to
 			look for corrupted data files. */
-			if (df_default.is_open() != df_default.is_valid()
-			    || df_dict.is_open() != df_dict.is_valid()
-			    || df_remote.is_open() != df_remote.is_valid()) {
+			if (df_default.is_open() != df_default.is_valid()) {
+				if (err) {
+					LOG_CRPTN_TABLE(tablename) <<
+						": open & valid status mismatch for df_default";
+				}
+				goto corrupted;
+			} else if (df_dict.is_open() != df_dict.is_valid()) {
+				if (err) {
+					LOG_CRPTN_TABLE(tablename) <<
+						": open & valid status mismatch for df_dict";
+				}
+				goto corrupted;
+			} else if (df_remote.is_open() != df_remote.is_valid()) {
+				if (err) {
+					LOG_CRPTN_TABLE(tablename) <<
+						": open & valid status mismatch for df_remote";
+				}
 				goto corrupted;
 			}
 error:

@@ -1708,6 +1708,9 @@ row_fts_merge_insert(
 					(row_merge_block_t*) crypt_block[i],
 					space))) {
 				error = DB_CORRUPTION;
+				LOG_CRPTN_INDEX(table->name, index->name) <<
+					": row_merge_read() failed; "
+					"i: " << i << "; space:" << space;
 				goto exit;
 			}
 

@@ -1857,7 +1857,8 @@ dict_index_add_to_cache(
 	ut_ad(dict_index_is_clust(index) || !index->table->no_rollback());
 
 	if (!dict_index_find_cols(index, add_v)) {
-
+		LOG_CRPTN_INDEX(index->table->name, index->name) <<
+			": dict_index_find_cols() failed";
 		dict_mem_index_free(index);
 		index = NULL;
 		return DB_CORRUPTION;

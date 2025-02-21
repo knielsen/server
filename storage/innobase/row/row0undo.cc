@@ -432,6 +432,8 @@ row_undo(
 		break;
 	default:
 		ut_ad(!"wrong state");
+		LOG_CRPTN_INDEX_TRX(node->table->name, node->index->name, node->trx) <<
+			": wrong state: " << (uint) node->state;
 		err = DB_CORRUPTION;
 	}
 

@@ -4863,6 +4863,10 @@ dberr_t ibuf_check_bitmap_on_import(const trx_t* trx, fil_space_t* space)
 			mutex_exit(&ibuf_mutex);
 			ibuf_exit(&mtr);
 			mtr_commit(&mtr);
+			LOG_CRPTN_FILE(space->chain.start->name) <<
+				" transaction " << trx->id <<
+				" space " << space->id << " page " << page_no <<
+				" (ibuf_bitmap_get_map_page() failed";
 			return DB_CORRUPTION;
 		}
 
@@ -4908,6 +4912,10 @@ dberr_t ibuf_check_bitmap_on_import(const trx_t* trx, fil_space_t* space)
 					 " is wrongly flagged to belong to the"
 					 " insert buffer",
 					space->chain.start->name, offset);
+				LOG_CRPTN_FILE(space->chain.start->name) <<
+					" transaction " << trx->id <<
+					" space " << space->id << " page " << offset <<
+					" (wrongly flagged to belong to the insert buffer";
 				return(DB_CORRUPTION);
 			}
 

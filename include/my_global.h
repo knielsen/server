@@ -1179,8 +1179,6 @@ typedef struct { const char *dli_fname, dli_fbase; } Dl_info;
 #  endif
 #elif defined(__BORLANDC__)
 #  define __func__ __FUNC__
-#else
-#  define __func__ "<unknown>"
 #endif
 #endif /* !defined(__func__) */
 

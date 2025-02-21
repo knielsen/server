@@ -6065,6 +6065,8 @@ add_all_virtual:
 		DBUG_ASSERT(root);
 		if (fil_page_get_type(root->frame) != FIL_PAGE_TYPE_INSTANT) {
 			DBUG_ASSERT(!"wrong page type");
+			LOG_CRPTN_TABLE(table->s->table_name.str) <<
+				": page type not FIL_PAGE_TYPE_INSTANT";
 			err = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -6155,6 +6157,8 @@ empty_table:
 	if (buf_block_t* root = btr_root_block_get(index, RW_SX_LATCH, &mtr)) {
 		if (fil_page_get_type(root->frame) != FIL_PAGE_INDEX) {
 			DBUG_ASSERT(!"wrong page type");
+			LOG_CRPTN_TABLE(table->s->table_name.str) <<
+				": page type not FIL_PAGE_INDEX";
 			goto err_exit;
 		}
 
@@ -6166,6 +6170,8 @@ empty_table:
 			BTR_NO_LOCKING_FLAG, BTR_MODIFY_TREE, index,
 			index->n_uniq, entry, 0, thr);
 	} else {
+		LOG_CRPTN_TABLE(table->s->table_name.str) <<
+			": btr_root_block_get() failed";
 err_exit:
 		err = DB_CORRUPTION;
 	}

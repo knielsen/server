@@ -4292,6 +4292,7 @@ sub extract_warning_lines ($$) {
   my @antipatterns =
     (
      @global_suppressions,
+     qr/\[crptn\]/,
      qr/error .*connecting to master/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
      qr/InnoDB: Error: table `test`.`t[12]` .*does not exist in the InnoDB internal/,
