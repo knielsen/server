@@ -2486,7 +2486,7 @@ rpl_parallel::find(uint32 domain_id)
   {
     /* Allocate a new, empty one. */
     ulong count= opt_slave_domain_parallel_threads;
-    if (count == 0 || count > opt_slave_parallel_threads)
+    if (count == 0 || count > opt_slave_parallel_threads || domain_id == 0)
       count= opt_slave_parallel_threads;
     rpl_parallel_thread **p;
     if (!my_multi_malloc(MYF(MY_WME|MY_ZEROFILL),
