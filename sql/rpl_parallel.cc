@@ -3064,7 +3064,7 @@ rpl_parallel::find(uint32 domain_id, Relay_log_info *rli)
   {
     /* Allocate a new, empty one. */
     ulong count= opt_slave_domain_parallel_threads;
-    if (count == 0 || count > opt_slave_parallel_threads)
+    if (count == 0 || count > opt_slave_parallel_threads || domain_id == 0)
       count= opt_slave_parallel_threads;
     rpl_parallel_entry::sched_bucket *p;
     I_List<rpl_parallel_entry::sched_bucket> *fifo;
