@@ -11468,7 +11468,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
-	  (((uint) tab->ref.key == tab->quick->index &&
+	  ((((uint) tab->ref.key == tab->quick->index || i == 0) &&
 	    tab->ref.key_length < tab->quick->max_used_key_length) ||
            (!is_hash_join_key_no(tab->ref.key) &&
             tab->table->intersect_keys.is_set(tab->ref.key))))
