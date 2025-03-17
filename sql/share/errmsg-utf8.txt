@@ -7960,8 +7960,10 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_REBUILD
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_LOCK
   eng "%s; Handler flags: 0x%llx; More: %s"
 
+ER_ALTER_DRY_RUN_SUCCESS_MSG
+  eng "DRY_RUN mode: no changes were applied"
 ER_ALTER_DRY_RUN
-  eng "%s ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
+  eng "%s ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied."
 ER_ALTER_DRY_RUN_NOT_SUPPORTED
   eng "%s ALTER cannot be executed with DRY_RUN flag; ALTER flags: 0x%llx; Partition flags: 0x%llx; Handler flags: 0x%llx"
 ER_ALTER_DRY_RUN_ERROR
