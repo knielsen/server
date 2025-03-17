@@ -8306,11 +8306,13 @@ static bool mysql_inplace_alter_table(THD *thd,
     table->file->ha_commit_inplace_alter_table(altered_table,
                                                ha_alter_info,
                                                false);
-    my_error(ER_ALTER_DRY_RUN, MYF(0),
-             "INPLACE",
-             alter_info->flags,
-             alter_info->partition_flags,
-             ha_alter_info->handler_flags);
+    my_ok(thd, 0, 0, ER(ER_ALTER_DRY_RUN_SUCCESS_MSG));
+    push_warning_printf(
+      thd,
+      Sql_condition::WARN_LEVEL_NOTE,
+      ER_ALTER_DRY_RUN,
+      ER(ER_ALTER_DRY_RUN),
+      "INPLACE");
     goto cleanup;
   }
 
@@ -11257,11 +11259,13 @@ do_continue:;
   {
     if (thd->lex->describe & DESCRIBE_DRY_RUN)
     {
-      my_error(ER_ALTER_DRY_RUN, MYF(0),
-               "NOOP",
-               alter_info->flags,
-               alter_info->partition_flags,
-               0ULL);
+      my_ok(thd, 0, 0, ER(ER_ALTER_DRY_RUN_SUCCESS_MSG));
+      push_warning_printf(
+        thd,
+        Sql_condition::WARN_LEVEL_NOTE,
+        ER_ALTER_DRY_RUN,
+        ER(ER_ALTER_DRY_RUN),
+        "NOOP");
       DBUG_RETURN(true);
     }
 
@@ -11704,11 +11708,13 @@ dry_run_error:
       if (thd->lex->describe & DESCRIBE_DRY_RUN)
       {
         // Even if NOOP ALTER, in DRY_RUN the query should not hit binlog, so abort with error.
-        my_error(ER_ALTER_DRY_RUN, MYF(0),
-                 "INPLACE_NOOP",
-                 alter_info->flags,
-                 alter_info->partition_flags,
-                 ha_alter_info.handler_flags);
+        my_ok(thd, 0, 0, ER(ER_ALTER_DRY_RUN_SUCCESS_MSG));
+        push_warning_printf(
+          thd,
+          Sql_condition::WARN_LEVEL_NOTE,
+          ER_ALTER_DRY_RUN,
+          ER(ER_ALTER_DRY_RUN),
+          "INPLACE_NOOP");
         goto err_new_table_cleanup;
       }
 

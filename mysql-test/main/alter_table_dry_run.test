@@ -48,7 +48,7 @@
 #
 
 --let $default_engine= query_get_value(SHOW VARIABLES LIKE 'default_storage_engine', Value, 1)
---let $error_code= ER_ALTER_DRY_RUN
+--let $error_code= 0
 --let $create_opts= DEFAULT CHARSET=utf8
 if ($default_engine == "Aria")
 {
@@ -162,7 +162,7 @@ SHOW CREATE TABLE t2;
 # InnoDB/MEMORY: DRY_RUN is supported (INPLACE_NOOP), Aria: DRY_RUN is NOT supported (COPY).
 if ($default_engine == "MEMORY")
 {
-    --let $error_code= ER_ALTER_DRY_RUN
+    --let $error_code= 0
 }
 --error $error_code
 ALTER TABLE t2 DROP INDEX a_index, ADD INDEX a_index(a), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
@@ -177,7 +177,6 @@ SHOW CREATE TABLE t2;
 --echo # Test CHANGE column type (same type) on non-empty table.
 --echo #
 # InnoDB/Aria/MEMORY: DRY_RUN is supported (INPLACE).
---error ER_ALTER_DRY_RUN
 ALTER TABLE t2 CHANGE a a INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
 --replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
 SHOW CREATE TABLE t2;
@@ -186,7 +185,6 @@ SHOW CREATE TABLE t2;
 --echo # Test CHANGE IF EXISTS (non existing column) on non-empty table.
 --echo #
 # InnoDB/Aria/MEMORY: DRY_RUN is supported (INPLACE_NOOP).
---error ER_ALTER_DRY_RUN
 ALTER TABLE t2 CHANGE IF EXISTS c c INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
 --replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
 SHOW CREATE TABLE t2;
@@ -195,7 +193,6 @@ SHOW CREATE TABLE t2;
 --echo # Test ADD COLUMN IF NOT EXISTS (existing column) on non-empty table.
 --echo #
 # InnoDB/Aria/MEMORY: DRY_RUN is supported (NOOP).
---error ER_ALTER_DRY_RUN
 ALTER TABLE t2 ADD COLUMN IF NOT EXISTS b DOUBLE, DRY_RUN;
 --replace_result $default_engine <ENGINE> $create_opts <CREATE_OPTS>
 SHOW CREATE TABLE t2;

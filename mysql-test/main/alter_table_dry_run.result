@@ -10,7 +10,8 @@ t1	CREATE TABLE `t1` (
 # Test addition of FULLTEXT index.
 #
 ALTER TABLE t1 ADD FULLTEXT INDEX (b(64)), DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2000000000000008; Partition flags: 0x0; Handler flags: 0x2000000800000400
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -35,7 +36,8 @@ t2	CREATE TABLE `t2` (
 # Test ADD INDEX on empty table.
 #
 ALTER TABLE t2 ADD INDEX b_index(b), DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2000000000000008; Partition flags: 0x0; Handler flags: 0x2000000800000000
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -46,7 +48,8 @@ t2	CREATE TABLE `t2` (
 # Test ADD COLUMN on empty table.
 #
 ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x1; Partition flags: 0x0; Handler flags: 0x40000000000
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -57,7 +60,8 @@ t2	CREATE TABLE `t2` (
 # Test DROP COLUMN on empty table.
 #
 ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2; Partition flags: 0x0; Handler flags: 0x200000000000
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -69,7 +73,8 @@ INSERT INTO t2 (a, b) VALUES (1, 1.1), (2, 2.2), (3, 3.3);
 # Test ADD COLUMN on non-empty table.
 #
 ALTER TABLE t2 ADD COLUMN c VARCHAR(32), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x1; Partition flags: 0x0; Handler flags: 0x40000000000
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -80,7 +85,8 @@ t2	CREATE TABLE `t2` (
 # Test DROP COLUMN on non-empty table.
 #
 ALTER TABLE t2 DROP COLUMN b, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2; Partition flags: 0x0; Handler flags: 0x200000000000
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -99,7 +105,8 @@ t2	CREATE TABLE `t2` (
 # Test DROP INDEX, ADD INDEX (same index) on non-empty table.
 #
 ALTER TABLE t2 DROP INDEX a_index, ADD INDEX a_index(a), ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE_NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x2000000000000018; Partition flags: 0x0; Handler flags: 0x2000000000000000
+Warnings:
+Note	4210	INPLACE_NOOP ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -118,7 +125,8 @@ t2	CREATE TABLE `t2` (
 # Test CHANGE column type (same type) on non-empty table.
 #
 ALTER TABLE t2 CHANGE a a INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x20000004; Partition flags: 0x0; Handler flags: 0x100
+Warnings:
+Note	4210	INPLACE ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -129,7 +137,9 @@ t2	CREATE TABLE `t2` (
 # Test CHANGE IF EXISTS (non existing column) on non-empty table.
 #
 ALTER TABLE t2 CHANGE IF EXISTS c c INT DEFAULT NULL, ALGORITHM=INSTANT, LOCK=NONE, DRY_RUN;
-ERROR HY000: INPLACE_NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x20000000; Partition flags: 0x0; Handler flags: 0x0
+Warnings:
+Note	1054	Unknown column 'c' in 't2'
+Note	4210	INPLACE_NOOP ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -140,7 +150,9 @@ t2	CREATE TABLE `t2` (
 # Test ADD COLUMN IF NOT EXISTS (existing column) on non-empty table.
 #
 ALTER TABLE t2 ADD COLUMN IF NOT EXISTS b DOUBLE, DRY_RUN;
-ERROR HY000: NOOP ALTER executed with DRY_RUN flag, no changes applied; ALTER flags: 0x0; Partition flags: 0x0; Handler flags: 0x0
+Warnings:
+Note	1060	Duplicate column name 'b'
+Note	4210	NOOP ALTER would be executed successfully. Since the DRY_RUN flag was used, no changes were applied.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
