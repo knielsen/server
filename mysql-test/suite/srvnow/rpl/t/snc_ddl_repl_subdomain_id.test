@@ -6,7 +6,7 @@
 --connect (slaveB,127.0.0.1,root,,test,$SLAVE_MYPORT)
 
 --connection slaveA
-SET @old_snc_slave_ddl_repl_subdomain_id= @@GLOBAL.snc_slave_ddl_repl_subdomain_id;
+SET @old_snc_slave_max_synchronized_domain_id= @@GLOBAL.snc_slave_max_synchronized_domain_id;
 
 --connection master
 SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomain_id;
@@ -17,7 +17,7 @@ SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomai
 
 # Demonstrate lock when feature is disabled
 --connection slaveA
-SET GLOBAL snc_slave_ddl_repl_subdomain_id=0;
+SET GLOBAL snc_slave_max_synchronized_domain_id=0;
 
 --connection master
 SET GLOBAL snc_master_ddl_repl_subdomain_id=0;
@@ -75,7 +75,7 @@ DELETE FROM t2;
 --connection slaveA
 STOP SLAVE;
 LOCK TABLE t1 WRITE;
-SET GLOBAL snc_slave_ddl_repl_subdomain_id=7;
+SET GLOBAL snc_slave_max_synchronized_domain_id=64;
 
 --connection master
 SET GLOBAL snc_master_ddl_repl_subdomain_id=7;
@@ -130,7 +130,7 @@ eval SELECT master_gtid_wait('$gtid2');
 #
 
 --connection slaveA
-SET GLOBAL snc_slave_ddl_repl_subdomain_id= @old_snc_slave_ddl_repl_subdomain_id;
+SET GLOBAL snc_slave_max_synchronized_domain_id= @snc_slave_max_synchronized_domain_id;
 
 --connection master
 SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;

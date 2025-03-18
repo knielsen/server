@@ -1747,11 +1747,10 @@ static Sys_var_uint Sys_snc_slave_ddl_repl_subdomain_id(
 
 static Sys_var_uint Sys_snc_slave_max_synchronized_domain_id(
        "snc_slave_max_synchronized_domain_id",
-       "Deprecated variable. Assigning a value will not have any effect. "
        "Synchronize transactions in domain N with those in domain 0 "
        "when N <= snc_slave_max_synchronized_domain_id. ",
        GLOBAL_VAR(snc_slave_max_synchronized_domain_id),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(100),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(64),
        BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
 

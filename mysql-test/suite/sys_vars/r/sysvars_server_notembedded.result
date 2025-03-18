@@ -3855,7 +3855,7 @@ COMMAND_LINE_ARGUMENT	REQUIRED
 VARIABLE_NAME	SNC_SLAVE_MAX_SYNCHRONIZED_DOMAIN_ID
 VARIABLE_SCOPE	GLOBAL
 VARIABLE_TYPE	INT UNSIGNED
-VARIABLE_COMMENT	Deprecated variable. Assigning a value will not have any effect. Synchronize transactions in domain N with those in domain 0 when N <= snc_slave_max_synchronized_domain_id. 
+VARIABLE_COMMENT	Synchronize transactions in domain N with those in domain 0 when N <= snc_slave_max_synchronized_domain_id. 
 NUMERIC_MIN_VALUE	0
 NUMERIC_MAX_VALUE	4294967295
 NUMERIC_BLOCK_SIZE	1
