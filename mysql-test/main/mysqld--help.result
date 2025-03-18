@@ -2081,7 +2081,7 @@ slow-launch-time 2
 slow-query-log FALSE
 snc-master-ddl-repl-subdomain-id 0
 snc-slave-ddl-repl-subdomain-id 0
-snc-slave-max-synchronized-domain-id 100
+snc-slave-max-synchronized-domain-id 64
 sort-buffer-size 2097152
 sql-mode STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 sql-safe-updates FALSE
