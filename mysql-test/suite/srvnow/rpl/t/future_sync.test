@@ -1,0 +1,118 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--connection slave
+--source include/stop_slave.inc
+SET @old_parallel_mode= @@GLOBAL.slave_parallel_mode;
+SET @old_parallel_threads= @@GLOBAL.slave_parallel_threads;
+SET GLOBAL slave_parallel_mode= optimistic;
+SET GLOBAL slave_parallel_threads= 4;
+CHANGE MASTER to master_use_gtid= slave_pos;
+
+--connection master
+SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomain_id;
+SET GLOBAL snc_master_ddl_repl_subdomain_id= 7;
+
+ALTER TABLE mysql.gtid_slave_pos ENGINE=InnoDB;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 1, 1, 1, 1);
+INSERT INTO t1 VALUES (2, 2, 2, 2, 2);
+INSERT INTO t1 VALUES (3, 3, 3, 3, 3);
+INSERT INTO t1 VALUES (4, 4, 4, 4, 4);
+INSERT INTO t1 VALUES (5, 5, 5, 5, 5);
+INSERT INTO t1 VALUES (6, 6, 6, 6, 6);
+INSERT INTO t1 VALUES (7, 7, 7, 7, 7);
+
+SET SESSION gtid_seq_no= 100;
+ALTER TABLE t1 ADD KEY i1 (b);
+ALTER TABLE t1 DROP KEY i1;
+
+SET SESSION gtid_seq_no= 200;
+ALTER TABLE t1 ADD KEY i2 (b);
+RENAME TABLE t1 TO t2;
+
+SET SESSION gtid_seq_no= 300;
+ALTER TABLE t2 ADD KEY i3 (c);
+ALTER TABLE t2 DROP COLUMN c;
+
+SET SESSION gtid_seq_no= 400;
+ALTER TABLE t2 ADD KEY i4 (d);
+ALTER TABLE t2 CHANGE COLUMN b foo INT;
+
+SET SESSION gtid_seq_no= 500;
+ALTER TABLE t2 ADD KEY i5 (e);
+DROP TABLE t2;
+
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE z1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+SET SESSION gtid_seq_no= 1000;
+ALTER TABLE z1 ADD KEY i1 (b);
+DROP DATABASE db2;
+
+USE test;
+CREATE TABLE t1 (a INT, b INT, c INT);
+CREATE TABLE t2 (a INT, b INT, c INT);
+
+SET SESSION gtid_seq_no= 1100;
+ALTER TABLE t1 ADD KEY i1 (a);
+SET SESSION gtid_seq_no= 1200;
+ALTER TABLE t2 ADD KEY i2 (a);
+DROP TABLE t2, t1;
+
+CREATE TABLE t1 (a INT, b INT, c INT);
+CREATE TABLE t2 (a INT, b INT, c INT);
+
+SET SESSION gtid_seq_no= 1300;
+ALTER TABLE t1 ADD KEY i1 (a);
+SET SESSION gtid_seq_no= 1400;
+ALTER TABLE t2 ADD KEY i2 (a);
+RENAME TABLE t2 to tt2, t1 to tt1;
+DROP TABLE tt1, tt2;
+
+CREATE TABLE t1 (a INT, b INT, c INT);
+
+SET SESSION gtid_seq_no= 1500;
+ALTER TABLE t1 ADD KEY i1 (a);
+SET SESSION gtid_seq_no= 1600;
+ALTER TABLE t1 ADD KEY i2 (b);
+SET SESSION gtid_seq_no= 1700;
+ALTER TABLE t1 ADD KEY i3 (c);
+ALTER TABLE t1 DROP KEY i3, DROP KEY i2, DROP KEY i1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT, b INT, c INT);
+
+SET SESSION gtid_seq_no= 1800;
+ALTER TABLE t1 ADD KEY i1 (a);
+SET SESSION gtid_seq_no= 1900;
+ALTER TABLE t1 ADD KEY i2 (b);
+ALTER TABLE t1 CHANGE COLUMN a foo INT, CHANGE COLUMN b bar INT;
+DROP TABLE t1;
+--source include/save_master_gtid.inc
+
+--connection slave
+SET @old_dbug= @@GLOBAL.debug_dbug;
+SET GLOBAL debug_dbug= "+d,rpl_parallel_delay_gtid_7_x_100x_start";
+
+--source include/start_slave.inc
+--let $slave_timeout= 1
+--source include/sync_with_master_gtid.inc
+
+SET GLOBAL debug_dbug= @old_dbug;
+
+# Cleanup
+
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_mode= @old_parallel_mode;
+SET GLOBAL slave_parallel_threads= @old_parallel_threads;
+--source include/start_slave.inc
+
+--connection master
+SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
+
+--source include/rpl_end.inc

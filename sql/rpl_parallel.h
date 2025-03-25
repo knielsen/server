@@ -101,6 +101,18 @@ struct group_commit_orderer {
 };
 
 
+/*
+  Structure stored in the rpl_parallel_entry::ooo_dependency_hash, keyed on
+  the GTID. Used to enforce additional cross-domain dependencies between
+  GTIDs replicating out-of-order.
+*/
+struct ooo_dependency {
+  rpl_gtid gtid;
+  rpl_group_info *rgi;
+  uint64_t sub_id;
+};
+
+
 struct rpl_parallel_thread {
   bool delay_start;
   bool running;
@@ -367,6 +379,7 @@ struct rpl_parallel_entry {
 
   mysql_mutex_t LOCK_parallel_entry;
   mysql_cond_t COND_parallel_entry;
+  HASH ooo_dependency_hash;    /* Stores struct ooo_dependency */
   uint32 domain_id;
   /*
     Incremented by wait_for_workers_idle() and rpl_pause_for_ftwrl() to show
@@ -482,6 +495,9 @@ struct rpl_parallel_entry {
 
   void check_scheduling_generation(sched_bucket *cur);
   sched_bucket *check_xa_xid_dependency(xid_t *xid);
+  int insert_ooo_dependency(rpl_gtid *gtid, rpl_group_info *rgi,
+                            uint64_t sub_id);
+  void remove_ooo_dependency(rpl_gtid *gtid);
   rpl_parallel_thread * choose_thread(rpl_group_info *rgi, bool *did_enter_cond,
                                       PSI_stage_info *old_stage,
                                       Gtid_log_event *gtid_ev);
@@ -505,6 +521,7 @@ struct rpl_parallel {
   rpl_parallel();
   ~rpl_parallel();
   void reset();
+  rpl_parallel_entry *lookup(uint32 domain_id);
   rpl_parallel_entry *find(uint32 domain_id, Relay_log_info *rli);
   void wait_for_done(THD *thd, Relay_log_info *rli);
   void stop_during_until();

@@ -225,4 +225,6 @@ extern MYSQL_PLUGIN_IMPORT const Lex_ident_column primary_key_name;
 
 bool check_engine(THD *, const char *, const char *, HA_CREATE_INFO *);
 
+void update_dependent_gtid_from_share(THD *thd, TABLE_LIST *table_list);
+
 #endif /* SQL_TABLE_INCLUDED */

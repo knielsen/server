@@ -2449,7 +2449,7 @@ Gtid_log_event::Gtid_log_event(const uchar *buf, uint event_len,
                                const Format_description_log_event
                                *description_event)
   : Log_event(buf, description_event), seq_no(0), commit_id(0),
-    flags_extra(0), extra_engines(0), thread_id(0)
+    flags_extra(0), extra_engines(0), thread_id(0), dependent_gtid{0,0,0}
 {
   uint8 header_size= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[GTID_EVENT-1];
@@ -2533,6 +2533,24 @@ Gtid_log_event::Gtid_log_event(const uchar *buf, uint event_len,
     {
       thread_id= uint4korr(buf);
       buf+= 4;
+    }
+
+    if (flags_extra & FL_EXTRA_DEPENDENT_GTID)
+    {
+      if (event_len < static_cast<uint>(buf - buf_0) + 16)
+      {
+        seq_no= 0;
+        return;
+      }
+
+      dependent_gtid.domain_id= uint4korr(buf);
+      buf+= 4;
+      dependent_gtid.server_id= uint4korr(buf);
+      buf+= 4;
+      dependent_gtid.seq_no= uint8korr(buf);
+      buf+= 8;
+
+      DBUG_ASSERT(dependent_gtid.seq_no > 0);
     }
   }
   /*

@@ -7198,6 +7198,11 @@ MYSQL_BIN_LOG::write_gtid_event(THD *thd, bool standalone,
   if (thd->get_binlog_flags_for_alter() & Gtid_log_event::FL_START_ALTER_E1)
     thd->set_binlog_start_alter_seq_no(gtid.seq_no);
 
+  if (thd->alt_table_share)
+  {
+    thd->alt_table_share->alt_gtid= gtid;
+  }
+
   Gtid_log_event gtid_event(thd, seq_no, domain_id, standalone,
                             LOG_EVENT_SUPPRESS_USE_F, is_transactional,
                             commit_id, has_xid, is_ro_1pc);

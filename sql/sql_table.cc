@@ -1450,6 +1450,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables,
                   thd->find_temporary_table(table) &&
                   table->mdl_request.ticket != NULL));
 
+    update_dependent_gtid_from_share(thd, table);
+
     if (drop_sequence && table->table &&
         table->table->s->table_type != TABLE_TYPE_SEQUENCE)
     {
@@ -10969,6 +10971,11 @@ bool mysql_alter_table(THD *thd, const LEX_CSTRING *new_db,
   }
   table_creation_was_logged= table->s->table_creation_was_logged;
 
+  for (TABLE_LIST *t= table_list; t; t= t->next_local)
+  {
+    update_dependent_gtid_from_share(thd, t);
+  }
+
   table->use_all_columns();
 
   /*
@@ -12270,7 +12277,7 @@ end_inplace:
       ALTER_ADD_NON_UNIQUE_NON_PRIM_INDEX |
       ALTER_ADD_UNIQUE_INDEX |
       ALTER_INDEX_ORDER;
-    int tmp_error;
+    int tmp_error= 0;
     thd->binlog_xid= thd->query_id;
     ddl_log_update_xid(&ddl_log_state, thd->binlog_xid);
 
@@ -12280,11 +12287,23 @@ end_inplace:
       uint32 current_gtid_domain_id= thd->variables.gtid_domain_id;
       if (snc_master_ddl_repl_subdomain_id != 0)
       {
+        /*
+          The ALTER TABLE has caused the old table share to be freed. So reopen
+          the table to get the new TABLE_SHARE.
+          Note that here we assume that in this case we can only have a single
+          table involved.
+        */
+        tmp_error= open_tables(thd, &table_list, &tables_opened,
+                               MYSQL_OPEN_REOPEN, &alter_prelocking_strategy);
+        DBUG_ASSERT(table_list && !table_list->next_global);
+
         thd->variables.gtid_domain_id= snc_master_ddl_repl_subdomain_id;
+        thd->alt_table_share= table_list->table->s;
       }
 
-      tmp_error= write_bin_log_with_if_exists(thd, true, false, log_if_exists,
-                                              partial_alter);
+      if (likely(!tmp_error))
+        tmp_error= write_bin_log_with_if_exists(thd, true, false, log_if_exists,
+                                                partial_alter);
       thd->variables.gtid_domain_id= current_gtid_domain_id;
     }
     else
@@ -13427,6 +13446,49 @@ bool check_engine(THD *thd, const char *db_name,
   lex_string_set(&create_info->new_storage_engine_name,
                  ha_resolve_storage_engine_name(*new_engine));
   DBUG_RETURN(false);
+}
+
+
+/**
+  Update the dependent GTID for a table share if it exists.
+  This function handles both cases where the table share is already available
+  and where it needs to be acquired temporarily.
+
+  @param thd        Thread handle
+  @param table_list Table list element containing table information
+
+  @return           void
+*/
+void update_dependent_gtid_from_share(THD *thd, TABLE_LIST *table_list)
+{
+  TABLE_SHARE *share= table_list->table ? table_list->table->s : NULL;
+  if (share)
+  {
+    if (share->alt_gtid.seq_no != 0 &&
+        (share->alt_gtid.seq_no > thd->dependent_gtid.seq_no ||
+         share->alt_gtid.domain_id != thd->dependent_gtid.domain_id))
+      thd->dependent_gtid= share->alt_gtid;
+  }
+  else
+  {
+    Diagnostics_area *stmt_da= thd->get_stmt_da();
+    Diagnostics_area tmp_stmt_da(true);
+    thd->set_stmt_da(&tmp_stmt_da);
+
+    share= tdc_acquire_share(thd, table_list, GTS_TABLE);
+
+    if (share)
+    {
+      if (share->alt_gtid.seq_no != 0 &&
+          (share->alt_gtid.seq_no > thd->dependent_gtid.seq_no ||
+           share->alt_gtid.domain_id != thd->dependent_gtid.domain_id))
+        thd->dependent_gtid= share->alt_gtid;
+
+      tdc_release_share(share);
+    }
+
+    thd->set_stmt_da(stmt_da);
+  }
 }
 
 

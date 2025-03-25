@@ -2154,6 +2154,7 @@ rpl_group_info::reinit(Relay_log_info *rli)
   row_stmt_start_timestamp= 0;
   long_find_row_note_printed= false;
   did_mark_start_commit= false;
+  is_ooo_dependency= false;
   gtid_ev_flags2= 0;
   gtid_ev_flags_extra= 0;
   gtid_ev_sa_seq_no= 0;
@@ -2167,6 +2168,7 @@ rpl_group_info::reinit(Relay_log_info *rli)
   commit_orderer.reinit();
   *deadlock_info= 0;
   main_domain_entry= NULL;
+  ooo_dependency_entry= NULL;
 }
 
 rpl_group_info::rpl_group_info(Relay_log_info *rli)

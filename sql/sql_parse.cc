@@ -7483,6 +7483,8 @@ void THD::reset_for_next_command(bool do_clear_error)
   if (opt_bin_log)
     reset_dynamic(&user_var_events);
   DBUG_ASSERT(user_var_events_alloc == &main_mem_root);
+  alt_table_share= 0;
+  dependent_gtid= {0,0,0};
   enable_slow_log= true;
   get_stmt_da()->reset_for_next_command();
   sent_row_count_for_statement= examined_row_count_for_statement= 0;

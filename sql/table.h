@@ -37,6 +37,7 @@
 #include "sql_type.h"               /* vers_kind_t */
 #include "privilege.h"              /* privilege_t */
 #include "my_bit.h"
+#include "rpl_gtid.h"
 
 /*
   Buffer for unix timestamp in microseconds:
@@ -911,6 +912,8 @@ struct TABLE_SHARE
   bool optimizer_costs_inited;
 
   ulonglong table_map_id;               /* for row-based replication */
+
+  rpl_gtid alt_gtid;
 
   /*
     Things that are incompatible between the stored version and the

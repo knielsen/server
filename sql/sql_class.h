@@ -3976,6 +3976,9 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  TABLE_SHARE *alt_table_share;
+  rpl_gtid dependent_gtid;
+
   /*
     Define durability properties that engines may check to
     improve performance. Not yet used in MariaDB
@@ -5493,7 +5496,14 @@ public:
   void release_transactional_locks()
   {
     if (!in_active_multi_stmt_transaction())
+    {
+      /*
+        Clear TABLE_SHARE reference so we do not access it after releasing our
+        metadata lock on it.
+      */
+      alt_table_share= NULL;
       mdl_context.release_transactional_locks(this);
+    }
   }
   int decide_logging_format(TABLE_LIST *tables);
 
