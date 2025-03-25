@@ -6094,6 +6094,11 @@ MYSQL_BIN_LOG::write_gtid_event(THD *thd, bool standalone,
 
   thd->set_last_commit_gtid(gtid);
 
+  if (thd->alt_table_share)
+  {
+    thd->alt_table_share->alt_gtid= gtid;
+  }
+
   Gtid_log_event gtid_event(thd, seq_no, domain_id, standalone,
                             LOG_EVENT_SUPPRESS_USE_F, is_transactional,
                             commit_id);

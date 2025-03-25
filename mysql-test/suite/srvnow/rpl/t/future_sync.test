@@ -1,0 +1,56 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--connection slave
+--source include/stop_slave.inc
+SET @old_parallel_mode= @@GLOBAL.slave_parallel_mode;
+SET @old_parallel_threads= @@GLOBAL.slave_parallel_threads;
+SET GLOBAL slave_parallel_mode= optimistic;
+SET GLOBAL slave_parallel_threads= 4;
+CHANGE MASTER to master_use_gtid= slave_pos;
+
+--connection master
+SET @old_snc_master_ddl_repl_subdomain_id= @@GLOBAL.snc_master_ddl_repl_subdomain_id;
+SET GLOBAL snc_master_ddl_repl_subdomain_id= 7;
+
+ALTER TABLE mysql.gtid_slave_pos ENGINE=InnoDB;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+INSERT INTO t1 VALUES (5, 5);
+INSERT INTO t1 VALUES (6, 6);
+INSERT INTO t1 VALUES (7, 7);
+
+SET SESSION gtid_seq_no= 100;
+ALTER TABLE t1 ADD KEY i1 (b);
+#ALTER TABLE t1 DROP KEY i1;
+DROP TABLE t1;
+
+--connection slave
+SET @old_dbug= @@GLOBAL.debug_dbug;
+SET GLOBAL debug_dbug= "+d,rpl_parallel_delay_gtid_7_x_100_start";
+
+--source include/start_slave.inc
+--let $slave_timeout= 1
+--source include/sync_with_master_gtid.inc
+
+SET GLOBAL debug_dbug= @old_dbug;
+
+# Cleanup
+
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_mode= @old_parallel_mode;
+SET GLOBAL slave_parallel_threads= @old_parallel_threads;
+--source include/start_slave.inc
+
+--connection master
+SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
+DROP TABLE t1;
+
+--source include/rpl_end.inc

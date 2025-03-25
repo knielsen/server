@@ -3063,6 +3063,9 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  TABLE_SHARE *alt_table_share;
+  rpl_gtid dependent_gtid;
+
   /*
     Define durability properties that engines may check to
     improve performance. Not yet used in MariaDB

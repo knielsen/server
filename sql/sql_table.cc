@@ -2309,6 +2309,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     LEX_CSTRING db= table->db;
     LEX_CUSTRING version;
     handlerton *table_type= 0;
+
+    if (table->table && table->table->s)
+    {
+      thd->dependent_gtid= table->table->s->alt_gtid;
+    }
+
     // reset error state for this table
     error= 0;
     LEX_CSTRING partition_engine_name= {NULL, 0};
@@ -10846,6 +10852,7 @@ end_inplace:
     if (snc_master_ddl_repl_subdomain_id != 0)
     {
       thd->variables.gtid_domain_id= snc_master_ddl_repl_subdomain_id;
+      thd->alt_table_share= table->s;
     }
 
     error= write_bin_log(thd, true, thd->query(), thd->query_length());

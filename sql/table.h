@@ -32,6 +32,7 @@
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
 #include "parse_file.h"
+#include "rpl_gtid.h"
 
 /* Structs that defines the TABLE */
 
@@ -849,6 +850,8 @@ struct TABLE_SHARE
   bool long_unique_table;
 
   ulong table_map_id;                   /* for row-based replication */
+
+  rpl_gtid alt_gtid;
 
   /*
     Things that are incompatible between the stored version and the

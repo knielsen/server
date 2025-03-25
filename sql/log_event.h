@@ -3396,6 +3396,8 @@ public:
   uint64 commit_id;
   uint32 domain_id;
   uchar flags2;
+  uchar flags_extra; // more flags area placed after the regular flags2's one
+  rpl_gtid dependent_gtid;
 
   /* Flags2. */
 
@@ -3423,6 +3425,10 @@ public:
   static const uchar FL_WAITED= 16;
   /* FL_DDL is set for event group containing DDL. */
   static const uchar FL_DDL= 32;
+
+  /* Flags_extra. */
+
+  static const uchar FL_EXTRA_DEPENDENT_GTID= 128;
 
 #ifdef MYSQL_SERVER
   Gtid_log_event(THD *thd_arg, uint64 seq_no, uint32 domain_id, bool standalone,
