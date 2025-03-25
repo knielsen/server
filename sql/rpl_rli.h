@@ -799,6 +799,21 @@ struct rpl_group_info
   uint64 main_domain_wait_sub_id;
   rpl_group_info *main_domain_wait_rgi;
   /*
+    A mechanism to handle dependencies between different out-of-order domains.
+    If ooo_dependency_entry is set, it points to the rpl_parallel_entry for
+    another domain, where this event group must wait for ooo_dependency_rgi
+    to complete before itself starting to replicate.
+
+    Similarly to wait_commit_sub_id, the mutex
+    ooo_dependency_entry->LOCK_parallel_entry must be locked and
+    ooo_dependency_sub_id checked against
+    ooo_dependency_entry->last_committed_sub_id to not access invalid
+    ooo_dependency_rgi that has already completed.
+   */
+  rpl_parallel_entry *ooo_dependency_entry;
+  rpl_group_info *ooo_dependency_rgi;
+  uint64_t ooo_dependency_sub_id;
+  /*
     This holds a pointer to a struct that keeps track of the need to wait
     for the previous batch of event groups to reach the commit stage, before
     this batch can start to execute.
@@ -868,6 +883,11 @@ struct rpl_group_info
     counting one event group twice.
   */
   bool did_mark_start_commit;
+  /*
+    Set true if GTID was inserted into rpl_parallel_entry::ooo_dependency_hash
+    and should be removed again after committing.
+  */
+  bool is_ooo_dependency;
   /* Copy of flags2 from GTID event. */
   uchar gtid_ev_flags2;
   /* Copy of flags3 from GTID event. */

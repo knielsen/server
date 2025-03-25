@@ -3369,6 +3369,7 @@ public:
   */
   uint8 extra_engines;
   my_thread_id thread_id;
+  rpl_gtid dependent_gtid;
 
   /* Flags2. */
 
@@ -3416,12 +3417,17 @@ public:
   static const uchar FL_ROLLBACK_ALTER_E1= 8;
   static const uchar FL_EXTRA_THREAD_ID= 16; // thread_id like in BEGIN Query
 
+  /* Flags_extra. */
+
+  static const uchar FL_EXTRA_DEPENDENT_GTID= 128;
+
 #ifdef MYSQL_SERVER
   static const uint max_data_length= GTID_HEADER_LEN + 2 + sizeof(XID)
                                      + 1 /* flags_extra: */
                                      + 1 /* Extra Engines */
                                      + 8 /* sa_seq_no */
-                                     + 4 /* FL_EXTRA_THREAD_ID */;
+                                     + 4 /* FL_EXTRA_THREAD_ID */
+                                     + 16/* FL_EXTRA_DEPENDENT_GTID */;
 
   Gtid_log_event(THD *thd_arg, uint64 seq_no, uint32 domain_id, bool standalone,
                  uint16 flags, bool is_transactional, uint64 commit_id,

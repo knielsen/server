@@ -356,6 +356,7 @@ do_rename(THD *thd, const rename_param *param, DDL_LOG_STATE *ddl_log_state,
     DBUG_RETURN(1);
 #endif
 
+  update_dependent_gtid_from_share(thd, ren_table);
   tdc_remove_table(thd, ren_table->db.str, ren_table->table_name.str);
 
   if (hton != view_pseudo_hton)

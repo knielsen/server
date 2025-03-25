@@ -2859,7 +2859,7 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, uint64 seq_no_arg,
     pad_to_size(0), flags2((standalone ? FL_STANDALONE : 0) |
            (commit_id_arg ? FL_GROUP_COMMIT_ID : 0)),
     flags_extra(0), extra_engines(0),
-    thread_id(thd_arg->variables.pseudo_thread_id)
+    thread_id(thd_arg->variables.pseudo_thread_id), dependent_gtid{0,0,0}
 {
   cache_type= Log_event::EVENT_NO_CACHE;
   bool is_tmp_table= thd_arg->lex->stmt_accessed_temp_table();
@@ -2930,6 +2930,11 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, uint64 seq_no_arg,
     if (flags_extra & (FL_COMMIT_ALTER_E1 | FL_ROLLBACK_ALTER_E1))
       sa_seq_no= thd->get_binlog_start_alter_seq_no();
     flags2|= FL_DDL;
+  }
+  if (thd_arg->dependent_gtid.seq_no)
+  {
+    flags_extra|= FL_EXTRA_DEPENDENT_GTID;
+    dependent_gtid= thd_arg->dependent_gtid;
   }
 
   DBUG_ASSERT(thd_arg->lex->sql_command != SQLCOM_CREATE_SEQUENCE ||
@@ -3049,6 +3054,16 @@ Gtid_log_event::write(Log_event_writer *writer)
   {
     int4store(buf + write_len, thread_id);
     write_len+= 4;
+  }
+
+  if (flags_extra & FL_EXTRA_DEPENDENT_GTID)
+  {
+    /*
+      Note this is not endian or alignment safe, will fail on big-endian and/or
+      architectures that do not support unaligned word stores.
+    */
+    *(rpl_gtid *)(buf + write_len)= dependent_gtid;
+    write_len+= sizeof(rpl_gtid);
   }
 
   if (write_len < GTID_HEADER_LEN)
