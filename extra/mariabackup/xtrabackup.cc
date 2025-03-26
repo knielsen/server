@@ -2795,13 +2795,12 @@ Read backup meta info.
 @return TRUE on success, FALSE on failure. */
 static
 my_bool
-mb_read_metadata(const char *dir, const char *name)
+mb_read_metadata(const char *dir, const char *name, char *out_path)
 {
-	char	filename[FN_REFLEN];
-	snprintf(filename, sizeof(filename), "%s/%s", dir, name);
-	if (!xtrabackup_read_metadata(filename)) {
+	snprintf(out_path, FN_REFLEN, "%s/%s", dir, name);
+	if (!xtrabackup_read_metadata(out_path)) {
 		msg("mariabackup: error: failed to read metadata from "
-		    "%s", filename);
+		    "%s", out_path);
 		return false;
 	}
 	return true;
@@ -2813,10 +2812,10 @@ Read backup meta info from the given directory
 with backward compatibility. */
 static
 my_bool
-mb_read_metadata_from_dir(const char *dir)
+mb_read_metadata_from_dir(const char *dir, char *out_path)
 {
-	return mb_read_metadata(dir, MB_METADATA_FILENAME) ||
-		mb_read_metadata(dir, XTRABACKUP_METADATA_FILENAME);
+	return mb_read_metadata(dir, MB_METADATA_FILENAME, out_path) ||
+		mb_read_metadata(dir, XTRABACKUP_METADATA_FILENAME, out_path);
 }
 
 
@@ -6776,6 +6775,24 @@ store_binlog_info(const char *filename, const char* name, ulonglong pos)
 	return(true);
 }
 
+// globals avail: metadata_type (s), metadata_from_lsn (l), metadata_to_lsn (l),
+// metadata_last_lsn (l), recover_binlog_info (b)
+static void log_metadata_summary(const char* metadata_path)
+{
+       msg("metadata: metadata_path = '%s', "
+                       "metadata_type = '%s', "
+                       "metadata_from_lsn = " UINT64PF ", "
+                       "metadata_to_lsn = " UINT64PF ", "
+                       "metadata_last_lsn = " UINT64PF ", "
+                       "recover_binlog_info = %d",
+                       metadata_path,
+                       metadata_type,
+                       metadata_from_lsn,
+                       metadata_to_lsn,
+                       metadata_last_lsn,
+                       recover_binlog_info ? 1 : 0);
+}
+
 /** Implement --prepare
 @return	whether the operation succeeded */
 static bool xtrabackup_prepare_func(char** argv)
@@ -6831,9 +6848,12 @@ static bool xtrabackup_prepare_func(char** argv)
 	/*
 	  read metadata of target
 	*/
-	if (!mb_read_metadata_from_dir(xtrabackup_target_dir)) {
+	char metadata_path[FN_REFLEN];
+	if (!mb_read_metadata_from_dir(xtrabackup_target_dir, metadata_path)) {
 		return(false);
 	}
+
+	DBUG_EXECUTE_IF("mariabackup_fail_metadata", strcpy(metadata_type, "foobarbaz"););
 
 	if (!strcmp(metadata_type, "full-backuped")) {
 		if (xtrabackup_incremental) {
@@ -6846,6 +6866,7 @@ static bool xtrabackup_prepare_func(char** argv)
 		msg("This target seems to be already prepared.");
 	} else {
 		msg("This target does not have correct metadata.");
+		log_metadata_summary(metadata_path);
 		return(false);
 	}
 
@@ -7779,6 +7800,7 @@ static int main_low(char** argv)
 	/* temporary setting of enough size */
 	srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_MAX;
 	srv_page_size = UNIV_PAGE_SIZE_MAX;
+	char metadata_path[FN_REFLEN];
 	if (xtrabackup_backup && xtrabackup_incremental) {
 		/* direct specification is only for --backup */
 		/* and the lsn is prior to the other option */
@@ -7795,14 +7817,16 @@ static int main_low(char** argv)
 			return(EXIT_FAILURE);
 		}
 	} else if (xtrabackup_backup && xtrabackup_incremental_basedir) {
-		if (!mb_read_metadata_from_dir(xtrabackup_incremental_basedir)) {
+		if (!mb_read_metadata_from_dir(xtrabackup_incremental_basedir,
+					       metadata_path)) {
 			return(EXIT_FAILURE);
 		}
 
 		incremental_lsn = metadata_to_lsn;
 		xtrabackup_incremental = xtrabackup_incremental_basedir; //dummy
 	} else if (xtrabackup_prepare && xtrabackup_incremental_dir) {
-		if (!mb_read_metadata_from_dir(xtrabackup_incremental_dir)) {
+		if (!mb_read_metadata_from_dir(xtrabackup_incremental_dir,
+					       metadata_path)) {
 			return(EXIT_FAILURE);
 		}
 
