@@ -10851,11 +10851,22 @@ end_inplace:
     uint32 current_gtid_domain_id= thd->variables.gtid_domain_id;
     if (snc_master_ddl_repl_subdomain_id != 0)
     {
+      /*
+        The ALTER TABLE has caused the old table share to be freed. So reopen
+        the table to get the new TABLE_SHARE.
+        Note that here we assume that in this case we can only have a single
+        table involved.
+      */
+      error= open_tables(thd, &table_list, &tables_opened, MYSQL_OPEN_REOPEN,
+                          &alter_prelocking_strategy);
+      DBUG_ASSERT(table_list && !table_list->next_global);
+
       thd->variables.gtid_domain_id= snc_master_ddl_repl_subdomain_id;
-      thd->alt_table_share= table->s;
+      thd->alt_table_share= table_list->table->s;
     }
 
-    error= write_bin_log(thd, true, thd->query(), thd->query_length());
+    if (!error)
+      error= write_bin_log(thd, true, thd->query(), thd->query_length());
     thd->variables.gtid_domain_id= current_gtid_domain_id;
   }
   else

@@ -51,6 +51,5 @@ SET GLOBAL slave_parallel_threads= @old_parallel_threads;
 
 --connection master
 SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
-DROP TABLE t1;
 
 --source include/rpl_end.inc
