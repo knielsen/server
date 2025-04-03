@@ -28,6 +28,7 @@ INSERT INTO t1 VALUES (7, 7);
 
 SET SESSION gtid_seq_no= 100;
 ALTER TABLE t1 ADD KEY i1 (b);
+#ALTER TABLE t1 CHANGE COLUMN b foo INT;
 #ALTER TABLE t1 DROP KEY i1;
 DROP TABLE t1;
 
@@ -51,6 +52,5 @@ SET GLOBAL slave_parallel_threads= @old_parallel_threads;
 
 --connection master
 SET GLOBAL snc_master_ddl_repl_subdomain_id= @old_snc_master_ddl_repl_subdomain_id;
-DROP TABLE t1;
 
 --source include/rpl_end.inc

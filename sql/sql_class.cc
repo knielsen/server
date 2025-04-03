@@ -718,7 +718,7 @@ THD::THD(my_thread_id id, bool is_wsrep_applier)
   user_var_events_alloc= mem_root;
 
   alt_table_share= 0;
-  bzero(&dependent_gtid, sizeof(dependent_gtid)); 
+  dependent_gtid= {0,0,0};
 
   stmt_arena= this;
   thread_stack= 0;

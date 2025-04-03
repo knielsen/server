@@ -4601,7 +4601,14 @@ public:
   {
     if (!(server_status &
           (SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY)))
-      mdl_context.release_transactional_locks(this);
+    {
+       /*
+         Clear TABLE_SHARE reference so we do not access it after releasing our
+         metadata lock on it.
+       */
+       alt_table_share= NULL;
+       mdl_context.release_transactional_locks(this);
+     }
   }
   int decide_logging_format(TABLE_LIST *tables);
 

@@ -1394,7 +1394,7 @@ handle_rpl_parallel_thread(void *arg)
         DBUG_EXECUTE_IF("rpl_parallel_delay_gtid_7_x_100_start", {
             if (rgi->current_gtid.domain_id==7 &&
                 rgi->current_gtid.seq_no == 100)
-              my_sleep(1000);
+              my_sleep(10000);
           });
 #ifdef ENABLED_DEBUG_SYNC
         DBUG_EXECUTE_IF("hold_worker_on_schedule", {

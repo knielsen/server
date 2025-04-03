@@ -7947,10 +7947,8 @@ bool Binlog_checkpoint_log_event::write()
 Gtid_log_event::Gtid_log_event(const char *buf, uint event_len,
                const Format_description_log_event *description_event)
   : Log_event(buf, description_event), seq_no(0), commit_id(0),
-    flags_extra(0)
+    flags_extra(0), dependent_gtid{0,0,0}
 {
-  bzero((char*)&dependent_gtid, sizeof(dependent_gtid));
-
   uint8 header_size= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[GTID_EVENT-1];
   const char *buf_0= buf;
@@ -7963,7 +7961,7 @@ Gtid_log_event::Gtid_log_event(const char *buf, uint event_len,
   buf+= 8;
   domain_id= uint4korr(buf);
   buf+= 4;
-  flags2= *buf;
+  flags2= *(buf++);
   if (flags2 & FL_GROUP_COMMIT_ID)
   {
     if (event_len < (uint)header_size + GTID_HEADER_LEN + 2)
@@ -7971,18 +7969,15 @@ Gtid_log_event::Gtid_log_event(const char *buf, uint event_len,
       seq_no= 0;                                // So is_valid() returns false
       return;
     }
-    ++buf;
     commit_id= uint8korr(buf);
+    buf+= 8;
   }
 
   /* the extra flags check and actions */
   if (static_cast<uint>(buf - buf_0) < event_len)
   {
     flags_extra= *buf++;
-    /*
-      extra engines flags presence is identifed by non-zero byte value
-      at this point
-    */
+
     if (flags_extra & FL_EXTRA_DEPENDENT_GTID)
     {
       if (event_len < static_cast<uint>(buf - buf_0) + 1)
@@ -7991,7 +7986,7 @@ Gtid_log_event::Gtid_log_event(const char *buf, uint event_len,
         return;
       }
       dependent_gtid= *(rpl_gtid *)buf;
-      buf += sizeof(rpl_gtid);
+      buf+= sizeof(rpl_gtid);
 
       DBUG_ASSERT(dependent_gtid.seq_no > 0);
     }
@@ -8001,10 +7996,10 @@ Gtid_log_event::Gtid_log_event(const char *buf, uint event_len,
     the strict '<' part of the assert corresponds to extra zero-padded
     trailing bytes,
   */
-//  DBUG_ASSERT(static_cast<uint>(buf - buf_0) <= event_len);
+  DBUG_ASSERT(static_cast<uint>(buf - buf_0) <= event_len);
   /* and the last of them is tested. */
-//  DBUG_ASSERT(static_cast<uint>(buf - buf_0) == event_len ||
-//              buf_0[event_len - 1] == 0);
+  DBUG_ASSERT(static_cast<uint>(buf - buf_0) == event_len ||
+              buf_0[event_len - 1] == 0);
 }
 
 
@@ -8017,9 +8012,8 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, uint64 seq_no_arg,
   : Log_event(thd_arg, flags_arg, is_transactional),
     seq_no(seq_no_arg), commit_id(commit_id_arg), domain_id(domain_id_arg),
     flags2((standalone ? FL_STANDALONE : 0) | (commit_id_arg ? FL_GROUP_COMMIT_ID : 0)),
-    flags_extra(0)
+    flags_extra(0), dependent_gtid{0,0,0}
 {
-  bzero((char*)&dependent_gtid, sizeof(dependent_gtid));
   cache_type= Log_event::EVENT_NO_CACHE;
   bool is_tmp_table= thd_arg->lex->stmt_accessed_temp_table();
   if (thd_arg->transaction.stmt.trans_did_wait() ||
@@ -8039,6 +8033,11 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, uint64 seq_no_arg,
   /* Preserve any DDL or WAITED flag in the slave's binlog. */
   if (thd_arg->rgi_slave)
     flags2|= (thd_arg->rgi_slave->gtid_ev_flags2 & (FL_DDL|FL_WAITED));
+  if (thd_arg->dependent_gtid.seq_no)
+  {
+    flags_extra|= FL_EXTRA_DEPENDENT_GTID;
+    dependent_gtid= thd_arg->dependent_gtid;
+  }
 }
 
 
@@ -8081,7 +8080,7 @@ Gtid_log_event::peek(const char *event_start, size_t event_len,
 bool
 Gtid_log_event::write()
 {
-  uchar buf[GTID_HEADER_LEN+2 + /* flags_extra: */ 1+16];
+  uchar buf[GTID_HEADER_LEN+2 + /* flags_extra: */ 1 + /* rpl_gtid: */ 16];
   size_t write_len= 13;
 
   int8store(buf, seq_no);
@@ -8095,12 +8094,12 @@ Gtid_log_event::write()
     write_len= GTID_HEADER_LEN + 2;
   }
 
-
   if (flags_extra > 0)
   {
     buf[write_len]= flags_extra;
     write_len++;
   }
+
   if (flags_extra & FL_EXTRA_DEPENDENT_GTID)
   {
     *(rpl_gtid *)(buf + write_len)= dependent_gtid;
@@ -8112,6 +8111,7 @@ Gtid_log_event::write()
     bzero(buf+write_len, GTID_HEADER_LEN-write_len);
     write_len= GTID_HEADER_LEN;
   }
+
   return write_header(write_len) ||
          write_data(buf, write_len) ||
          write_footer();
