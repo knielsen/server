@@ -238,6 +238,9 @@ finish_event_group(rpl_parallel_thread *rpt, uint64 sub_id,
     }
   }
 
+  if (unlikely(rgi->is_ooo_dependency))
+    entry->remove_ooo_dependency(&rgi->current_gtid);
+
   /*
     If this event group got error, then any following event groups that have
     not yet started should just skip their group, preparing for stop of the
@@ -338,19 +341,53 @@ do_alt_domain_wait(rpl_group_info *rgi)
   rpl_parallel_entry *e= rgi->main_domain_entry;
   int err= 0;
   bool need_wait= false;
+  wait_for_commit *wfc= &rgi->commit_orderer;
 
-  thd->wait_for_commit_ptr= &rgi->commit_orderer;
   mysql_mutex_lock(&e->LOCK_parallel_entry);
   if (rgi->main_domain_wait_sub_id > e->last_committed_sub_id)
   {
-    rgi->commit_orderer.
-      register_wait_for_prior_commit(&rgi->main_domain_wait_rgi->commit_orderer);
+    wait_for_commit *waitee= &rgi->main_domain_wait_rgi->commit_orderer;
+    wfc->register_wait_for_prior_commit(waitee);
     need_wait= true;
   }
   mysql_mutex_unlock(&e->LOCK_parallel_entry);
   if (need_wait)
-    err= thd->wait_for_prior_commit();
-  thd->wait_for_commit_ptr= NULL;
+    err= wfc->wait_for_prior_commit(thd);
+
+  if (err)
+  {
+    slave_output_error_info(rgi, thd);
+    signal_error_to_sql_driver_thread(thd, rgi, 1);
+  }
+}
+
+
+/*
+  Wait for an out-of-order dependency (ie. not just the prior GTID in the same
+  domain) that should commit before us. Used to ensure that ADD INDEX in the
+  alternate domain gets to run before a following DROP TABLE in the main
+  domain.
+*/
+static void
+do_ooo_dependency_wait(rpl_group_info *rgi)
+{
+  int err= 0;
+  bool need_wait= false;
+  THD *thd= rgi->thd;
+  wait_for_commit *wfc= &rgi->commit_orderer;
+  rpl_parallel_entry *other_entry= rgi->ooo_dependency_entry;
+  uint64 sub_id= rgi->ooo_dependency_sub_id;
+
+  mysql_mutex_lock(&other_entry->LOCK_parallel_entry);
+  if (sub_id > other_entry->last_committed_sub_id)
+  {
+    wait_for_commit *waitee= &rgi->ooo_dependency_rgi->commit_orderer;
+    wfc->register_wait_for_prior_commit(waitee);
+    need_wait= true;
+  }
+  mysql_mutex_unlock(&other_entry->LOCK_parallel_entry);
+  if (need_wait)
+    err= wfc->wait_for_prior_commit(thd);
 
   if (err)
   {
@@ -1441,6 +1478,7 @@ handle_rpl_parallel_thread(void *arg)
 
         event_gtid_sub_id= rgi->gtid_sub_id;
         rgi->thd= rgi->commit_orderer.owner_thd= thd;
+        thd->wait_for_commit_ptr= &rgi->commit_orderer;
 
         DBUG_EXECUTE_IF("gco_wait_delay_gtid_0_x_99", {
             if (rgi->current_gtid.domain_id == 0 && rgi->current_gtid.seq_no == 99) {
@@ -1448,8 +1486,10 @@ handle_rpl_parallel_thread(void *arg)
                   STRING_WITH_LEN("now SIGNAL gco_wait_paused WAIT_FOR gco_wait_cont"));
             } });
 
-        if (rgi->main_domain_entry)
+        if (unlikely(rgi->main_domain_entry))
           do_alt_domain_wait(rgi);
+        if (unlikely(rgi->ooo_dependency_entry))
+          do_ooo_dependency_wait(rgi);
 
         mysql_mutex_lock(&entry->LOCK_parallel_entry);
         skip_event_group= do_gco_wait(rgi, gco, &did_enter_cond, &old_stage);
@@ -1471,8 +1511,6 @@ handle_rpl_parallel_thread(void *arg)
 
         unlock_or_exit_cond(thd, &entry->LOCK_parallel_entry,
                             &did_enter_cond, &old_stage);
-
-        thd->wait_for_commit_ptr= &rgi->commit_orderer;
 
         if (opt_gtid_ignore_duplicates &&
             rgi->rli->mi->using_gtid != Master_info::USE_GTID_NO)
@@ -2451,6 +2489,7 @@ free_rpl_parallel_entry(void *element)
     dealloc_gco(e->current_gco);
     e->current_gco= prev_gco;
   }
+  my_hash_free(&e->ooo_dependency_hash);
   mysql_cond_destroy(&e->COND_parallel_entry);
   mysql_mutex_destroy(&e->LOCK_parallel_entry);
   my_free(e);
@@ -2478,6 +2517,59 @@ rpl_parallel::reset()
 rpl_parallel::~rpl_parallel()
 {
   my_hash_free(&domain_hash);
+}
+
+
+int
+rpl_parallel_entry::insert_ooo_dependency(rpl_gtid *gtid, rpl_group_info *rgi,
+                                          uint64_t sub_id)
+{
+  int err= 0;
+  ooo_dependency *d;
+  if (!(d= (ooo_dependency *)my_malloc(sizeof(*d), MYF(MY_WME))))
+    return 1;
+  d->gtid= *gtid;
+  d->sub_id= sub_id;
+  d->rgi= rgi;
+
+  mysql_mutex_lock(&LOCK_parallel_entry);
+  if (my_hash_insert(&ooo_dependency_hash, (uchar *)d))
+  {
+    my_free(d);
+    err= 1;
+  }
+  mysql_mutex_unlock(&LOCK_parallel_entry);
+  return err;
+}
+
+
+void
+rpl_parallel_entry::remove_ooo_dependency(rpl_gtid *gtid)
+{
+  mysql_mutex_assert_owner(&LOCK_parallel_entry);
+  uchar *ooo_entry= my_hash_search(&ooo_dependency_hash, (uchar *)gtid, 0);
+  DBUG_ASSERT(ooo_entry != nullptr);
+  if (ooo_entry)
+    my_hash_delete(&ooo_dependency_hash, ooo_entry);
+}
+
+
+/*
+  Lookup a domain to find the corresponding rpl_parallel_entry, if any.
+  Returns NULL if the domain does not exist yet.
+*/
+rpl_parallel_entry *
+rpl_parallel::lookup(uint32 domain_id)
+{
+  return (rpl_parallel_entry *)my_hash_search(&domain_hash,
+                                              (const uchar *)&domain_id, 0);
+}
+
+
+static void
+free_ooo_dependency(void *p)
+{
+  my_free(p);
 }
 
 
@@ -2512,6 +2604,9 @@ rpl_parallel::find(uint32 domain_id)
       my_free(e);
       return NULL;
     }
+    my_hash_init(&e->ooo_dependency_hash, &my_charset_bin, 4,
+               offsetof(ooo_dependency, gtid), sizeof(rpl_gtid),
+               NULL, free_ooo_dependency, HASH_UNIQUE);
     mysql_mutex_init(key_LOCK_parallel_entry, &e->LOCK_parallel_entry,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_parallel_entry, &e->COND_parallel_entry, NULL);
@@ -2934,9 +3029,9 @@ rpl_parallel::do_event(rpl_group_info *serial_rgi, Log_event *ev,
     }
   }
 
+  rpl_gtid gtid= {0, 0, 0};
   if (typ == GTID_EVENT)
   {
-    rpl_gtid gtid;
     Gtid_log_event *gtid_ev= static_cast<Gtid_log_event *>(ev);
     uint32 domain_id= (rli->mi->using_gtid == Master_info::USE_GTID_NO ||
                        rli->mi->parallel_mode <= SLAVE_PARALLEL_MINIMAL ?
@@ -3035,7 +3130,8 @@ rpl_parallel::do_event(rpl_group_info *serial_rgi, Log_event *ev,
       if (gtid_ev->domain_id != 0 && 
           gtid_ev->domain_id <= snc_slave_max_synchronized_domain_id)
       {
-        rpl_parallel_entry *main_entry= find(rli->sql_driver_thd->variables.gtid_domain_id);
+        rpl_parallel_entry *main_entry=
+          lookup(rli->sql_driver_thd->variables.gtid_domain_id);
 
         if (main_entry)
         {
@@ -3045,7 +3141,39 @@ rpl_parallel::do_event(rpl_group_info *serial_rgi, Log_event *ev,
           rgi->main_domain_wait_sub_id= main_entry->current_sub_id;
           rgi->main_domain_wait_rgi= main_entry->current_group_info;
         }
+
+        /*
+          Insert an entry for this GTID, so that another domain that has a
+          dependency on it can look it up and do a wait_for_prior_commit on
+          it.
+        */
+        if (e->insert_ooo_dependency(&gtid, rgi, rgi->gtid_sub_id))
+        {
+          delete ev;
+          return 1;
+        }
       }
+    }
+
+    /*
+      Schedule a wait for a GTID in an alternate domain if we have an
+      out-of-order dependency registered on it.
+    */
+    rpl_parallel_entry *dependent_entry;
+    if (gtid_ev->dependent_gtid.seq_no &&
+        (dependent_entry= lookup(gtid_ev->dependent_gtid.domain_id)))
+    {
+      mysql_mutex_lock(&dependent_entry->LOCK_parallel_entry);
+      ooo_dependency *d= (ooo_dependency *)
+        my_hash_search(&dependent_entry->ooo_dependency_hash,
+                       (const uchar *)&gtid_ev->dependent_gtid, 0);
+      if (d)
+      {
+        rgi->ooo_dependency_entry= dependent_entry;
+        rgi->ooo_dependency_sub_id= d->sub_id;
+        rgi->ooo_dependency_rgi= d->rgi;
+      }
+      mysql_mutex_unlock(&dependent_entry->LOCK_parallel_entry);
     }
 
     speculation= rpl_group_info::SPECULATE_NO;

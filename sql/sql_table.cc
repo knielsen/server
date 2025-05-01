@@ -2173,6 +2173,23 @@ static uint32 comment_length(THD *thd, uint32 comment_pos,
   return 0;
 }
 
+
+class Ignore_table_not_found_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level *level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl)
+  {
+    *cond_hdl= NULL;
+    return sql_errno == ER_NO_SUCH_TABLE;
+  }
+};
+
+
 /**
   Execute the drop of a normal or temporary table.
 
@@ -2299,6 +2316,22 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     built_non_trans_tmp_query.set_charset(system_charset_info);
     built_non_trans_tmp_query.copy(built_trans_tmp_query);
+  }
+
+  if (!drop_temporary && !drop_view && !drop_sequence &&
+      tables && !tables->view && !tables->next_local)
+  {
+    Alter_table_prelocking_strategy prelocking_strategy;
+    uint tables_opened;
+    Ignore_table_not_found_handler err_handler;
+    /*
+      Open the table so we can access the table share.
+      But ignore if the table does not exist, eg. DROP TABLE IF EXITS.
+    */
+    thd->push_internal_handler(&err_handler);
+    open_tables(thd, &tables, &tables_opened, MYSQL_OPEN_REOPEN,
+                &prelocking_strategy);
+    thd->pop_internal_handler();
   }
 
   for (table= tables; table; table= table->next_local)
@@ -2508,6 +2541,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           goto err;
         }
         /* the following internally does TDC_RT_REMOVE_ALL */
+        close_all_tables_for_name(thd, table->table->s,
+                                  HA_EXTRA_PREPARE_FOR_DROP, NULL);
+        table->table= 0;
+      }
+      else if (table->table)
+      {
         close_all_tables_for_name(thd, table->table->s,
                                   HA_EXTRA_PREPARE_FOR_DROP, NULL);
         table->table= 0;

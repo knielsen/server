@@ -8190,14 +8190,6 @@ Gtid_log_event::do_apply_event(rpl_group_info *rgi)
 
   DBUG_ASSERT((bits & OPTION_GTID_BEGIN) == 0);
 
-  if (dependent_gtid.seq_no)
-  {
-    bool first= true;
-    StringBuffer<1024> gtid_str;
-    rpl_slave_state_tostring_helper(&gtid_str, &dependent_gtid, &first);
-    rpl_global_gtid_waiting.wait_for_pos(thd, &gtid_str, (longlong)-1);
-  }
-
   Master_info *mi=rgi->rli->mi;
   switch (flags2 & (FL_DDL | FL_TRANSACTIONAL))
   {
