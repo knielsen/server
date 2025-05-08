@@ -33,6 +33,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
+#include "ha_innodb.h"
 #include "srv0mon.h"
 #include "trx0trx.h"
 #include "log.h"
@@ -1110,6 +1111,11 @@ btr_search_guess_on_hash(
 
   if ((tuple->info_bits & REC_INFO_MIN_REC_FLAG))
     return false;
+
+  THD* thd= current_thd;
+  if (thd && ha_innobase::is_snc_skip_ahi_guess_on_hash_enabled(thd)) {
+    return false;
+  }
 
   if (!index->search_info.last_hash_succ ||
       !index->search_info.n_hash_potential)
