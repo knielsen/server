@@ -2597,15 +2597,22 @@ rec_print(
 std::ostream&
 operator<<(std::ostream& o, const rec_index_print& r)
 {
-	mem_heap_t*	heap	= NULL;
-	rec_offs*	offsets	= rec_get_offsets(
-		r.m_rec, r.m_index, NULL, page_rec_is_leaf(r.m_rec)
-		? r.m_index->n_core_fields : 0,
-		ULINT_UNDEFINED, &heap);
-	rec_print(o, r.m_rec,
-		  rec_get_info_bits(r.m_rec, rec_offs_comp(offsets)),
-		  offsets);
-	mem_heap_free(heap);
+	if (r.m_rec)
+	{
+		mem_heap_t*	heap	= NULL;
+		rec_offs*	offsets	= rec_get_offsets(
+			r.m_rec, r.m_index, NULL, page_rec_is_leaf(r.m_rec)
+			? r.m_index->n_core_fields : 0,
+			ULINT_UNDEFINED, &heap);
+		rec_print(o, r.m_rec,
+			  rec_get_info_bits(r.m_rec, rec_offs_comp(offsets)),
+			  offsets);
+		mem_heap_free(heap);
+	}
+	else
+	{
+		o << "[rec_index_print::m_rec=NULL]";
+	}
 	return(o);
 }
 
@@ -2616,9 +2623,16 @@ operator<<(std::ostream& o, const rec_index_print& r)
 std::ostream&
 operator<<(std::ostream& o, const rec_offsets_print& r)
 {
-	rec_print(o, r.m_rec,
-		  rec_get_info_bits(r.m_rec, rec_offs_comp(r.m_offsets)),
-		  r.m_offsets);
+	if (r.m_rec)
+	{
+		rec_print(o, r.m_rec,
+			rec_get_info_bits(r.m_rec, rec_offs_comp(r.m_offsets)),
+			r.m_offsets);
+	}
+	else
+	{
+		o << "[rec_offsets_print::m_rec=NULL]";
+	}
 	return(o);
 }
 
