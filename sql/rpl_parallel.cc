@@ -856,6 +856,7 @@ retry_event_group(rpl_group_info *rgi, rpl_parallel_thread *rpt,
   ulong retries= 0;
   Format_description_log_event *description_event= NULL;
 
+  DBUG_EXECUTE_IF("delay_parallel_retry", { my_sleep(500000);});
 do_retry:
   if (slave_retries_file &&
       (!opt_slave_retries_max_log || retries < opt_slave_retries_max_log || errmsg))

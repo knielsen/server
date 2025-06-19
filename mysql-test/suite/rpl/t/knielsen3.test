@@ -1,0 +1,100 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--connection master
+ALTER TABLE mysql.gtid_slave_pos ENGINE=InnoDB;
+# The table we test the conflict/hang on.
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (70694*10 + 1, 70694 MOD 511, REPEAT("x", 3 + (70694 MOD 5)));
+# An auxiliary table used to temporarily block replication threads and
+# control their execution order.
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(10)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (5,''), (10,''), (15,''), (20,''), (25,'');
+--sync_slave_with_master
+
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_mode= optimistic;
+SET GLOBAL slave_parallel_threads= 3;
+CHANGE MASTER TO Master_use_gtid=Slave_pos;
+
+connect (con_aux1,127.0.0.1,root,,test,$SLAVE_MYPORT);
+# A transaction that temporarily blocks T1.
+BEGIN;
+UPDATE t2 SET b='aux1' WHERE a=10;
+
+connect (con_aux2,127.0.0.1,root,,test,$SLAVE_MYPORT);
+# A transaction that temporarily blocks T3.
+BEGIN;
+UPDATE t2 SET b='aux2' WHERE a=20;
+
+#connect (con1,localhost,root,,test);
+--connection master
+# T1.
+SHOW PROCESSLIST;
+BEGIN;
+UPDATE t2 SET b='T1' WHERE a=10;
+INSERT INTO t1 VALUES (70694*10 + 0 + 2, 70694+0, CONCAT(70694, '-', 0));
+COMMIT;
+
+# T2.
+DELETE FROM t1 WHERE a=70694*10+5;
+
+# T3.
+BEGIN;
+UPDATE t2 SET b='T2' WHERE a=20;
+DELETE FROM t1 WHERE a=70695*10+5;
+COMMIT;
+
+--source include/save_master_gtid.inc
+
+--connection slave
+SET @old_dbug= @@GLOBAL.debug_dbug;
+SET GLOBAL debug_dbug= '+d,delay_parallel_retry';
+--source include/start_slave.inc
+
+# Wait for T2 to likely have taken its lock and wait for prior commit.
+--sleep 0.1
+
+# Release T1 so it can try to run and get blocked by T2. T1 will deadlock kill
+# T2, but we will arrange with DBUG injection that T2 delays a bit before
+# rolling back.
+--connection con_aux1
+ROLLBACK;
+--disconnect con_aux1
+--connection slave
+
+# Wait for T1 to likely have sent the deadlock kill of T2 and gone to wait
+# on the row lock. T2 delay is so it will likely not yet have rolled back.
+--sleep 0.1
+
+# Release T3 so it can get its lock before T2 has time to roll back.
+--connection con_aux2
+ROLLBACK;
+--disconnect con_aux2
+--connection slave
+
+# Wait for T3 to likely have gotten its lock
+--sleep 0.1
+
+# Now the delay from DBUG injection to rollback T2 completes. The bug was that
+# this would leave T1 waiting on T3, with no wait reported by InnoDB and thus
+# no deadlock kill -> replication hangs.
+--sleep 0.5
+SET GLOBAL debug_dbug= @old_dbug;
+
+--source include/sync_with_master_gtid.inc
+SELECT * FROM t1 ORDER BY a;
+
+# Clean up.
+--connection slave
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_mode= default;
+SET GLOBAL slave_parallel_threads= default;
+--source include/start_slave.inc
+
+--connection master
+DROP TABLE t1, t2;
+--source include/rpl_end.inc

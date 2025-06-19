@@ -5133,6 +5133,7 @@ thd_rpl_deadlock_check(MYSQL_THD thd, MYSQL_THD other_thd)
   binlog_report_wait_for(thd, other_thd);
   rgi= thd->rgi_slave;
   other_rgi= other_thd->rgi_slave;
+  fprintf(stderr, "HULU1: thd_rpl_deadlock_check() GTID %u-%u-%lu -> %u-%u-%lu\n", (rgi?rgi->current_gtid.domain_id:0), (rgi?rgi->current_gtid.server_id:0), (rgi?(ulong)rgi->current_gtid.seq_no:0), (other_rgi?other_rgi->current_gtid.domain_id:0), (other_rgi?other_rgi->current_gtid.server_id:0), (other_rgi?(ulong)other_rgi->current_gtid.seq_no:0));
   if (!rgi || !other_rgi)
     return 0;
   if (!rgi->is_parallel_exec)
