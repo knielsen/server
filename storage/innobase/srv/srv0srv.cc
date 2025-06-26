@@ -185,6 +185,8 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mysql_mutex_lock(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
+/** Flag to include the buffer pool in core files */
+my_bool	srv_snc_buffer_pool_in_core_file;
 /** Dump this % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
 /** Abort load after this amount of pages */

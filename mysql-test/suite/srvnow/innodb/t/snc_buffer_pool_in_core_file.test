@@ -1,0 +1,11 @@
+--source include/have_innodb.inc
+
+# Check the default value
+SET @orig = @@global.innodb_snc_buffer_pool_in_core_file;
+SELECT @orig;
+
+# Confirm that we can not change the value
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_snc_buffer_pool_in_core_file = OFF;
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_snc_buffer_pool_in_core_file = ON;

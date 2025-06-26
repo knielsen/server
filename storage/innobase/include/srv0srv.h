@@ -233,6 +233,8 @@ extern uint	srv_flush_log_at_timeout;
 extern my_bool	srv_adaptive_flushing;
 extern my_bool	srv_flush_sync;
 
+/** Flag to include the buffer pool in core files */
+extern my_bool		srv_snc_buffer_pool_in_core_file;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong	srv_buf_pool_dump_pct;
 #ifdef UNIV_DEBUG

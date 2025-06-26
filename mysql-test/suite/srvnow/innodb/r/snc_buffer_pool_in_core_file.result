@@ -1,0 +1,8 @@
+SET @orig = @@global.innodb_snc_buffer_pool_in_core_file;
+SELECT @orig;
+@orig
+0
+SET GLOBAL innodb_snc_buffer_pool_in_core_file = OFF;
+ERROR HY000: Variable 'innodb_snc_buffer_pool_in_core_file' is a read only variable
+SET GLOBAL innodb_snc_buffer_pool_in_core_file = ON;
+ERROR HY000: Variable 'innodb_snc_buffer_pool_in_core_file' is a read only variable

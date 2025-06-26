@@ -1426,6 +1426,10 @@ dberr_t srv_start(bool create_new_db)
 
 	fil_system.create(srv_file_per_table ? 50000 : 5000);
 
+	if (srv_snc_buffer_pool_in_core_file) {
+		sql_print_information("InnoDB: Buffer pool will be included in the core file");
+	}
+
 	if (buf_pool.create()) {
 		return(srv_init_abort(DB_ERROR));
 	}

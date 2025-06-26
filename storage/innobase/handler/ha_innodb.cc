@@ -19275,6 +19275,15 @@ static MYSQL_SYSVAR_SIZE_T(buffer_pool_chunk_size,
   NULL, NULL,
   0, 0, SIZE_T_MAX, 1024 * 1024);
 
+// Required for: https://mariadbcorp.atlassian.net/browse/SAMU-290
+// Related to: https://jira.mariadb.org/browse/MDEV-10814
+// Inspired by: https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_buffer_pool_in_core_file
+// Warning: might leak unencrypted user data into core files, use with caution.
+static MYSQL_SYSVAR_BOOL(snc_buffer_pool_in_core_file, srv_snc_buffer_pool_in_core_file,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Include the InnoDB buffer pool in the core file (default FALSE)",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Filename to/from which to dump/load the InnoDB buffer pool",
@@ -19920,6 +19929,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif
   MYSQL_SYSVAR(buffer_pool_size_max),
   MYSQL_SYSVAR(buffer_pool_chunk_size),
+  MYSQL_SYSVAR(snc_buffer_pool_in_core_file),
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
