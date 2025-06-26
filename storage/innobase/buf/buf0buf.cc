@@ -1391,7 +1391,8 @@ bool buf_pool_t::create() noexcept
   }
 
   MEM_UNDEFINED(memory_unaligned, size);
-  ut_dontdump(memory_unaligned, size, true);
+  if (!srv_snc_buffer_pool_in_core_file)
+    ut_dontdump(memory_unaligned, size, true);
   memory= memory_unaligned + alignment_waste;
   size_unaligned= size;
   size-= alignment_waste;

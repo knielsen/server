@@ -2578,6 +2578,7 @@ static bool innodb_init_param()
 
 	buf_pool.size_in_bytes_max = size_t(xtrabackup_use_memory);
 	buf_pool.size_in_bytes_requested = buf_pool.size_in_bytes_max;
+	srv_snc_buffer_pool_in_core_file = FALSE;
 
 	srv_n_read_io_threads = (uint) innobase_read_io_threads;
 	srv_n_write_io_threads = (uint) innobase_write_io_threads;
