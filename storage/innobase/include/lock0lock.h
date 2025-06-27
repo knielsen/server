@@ -905,7 +905,7 @@ lock_rec_create(
 	ulint			heap_no,/*!< in: heap number of the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in,out: transaction */
-	bool			caller_owns_trx_mutex);
+	bool			caller_owns_trx_mutex, uint16_t call_site);
 					/*!< in: true if caller owns
 					trx mutex */
 
@@ -943,7 +943,8 @@ lock_rec_create_low(
 	ulint		heap_no,
 	dict_index_t*	index,
 	trx_t*		trx,
-	bool		holds_trx_mutex);
+	bool		holds_trx_mutex,
+	uint16_t call_site);
 /** Enqueue a waiting request for a lock which cannot be granted immediately.
 Check for deadlocks.
 @param[in]	type_mode	the requested lock mode (LOCK_S or LOCK_X)

@@ -324,6 +324,31 @@ static bool	lock_deadlock_found = false;
 /** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;
 
+std::atomic<uint64_t>kn_log_idx;
+struct {
+  lock_t *lock;
+  trx_t *trx;
+  uint32_t space;
+  uint32_t page_no;
+  uint32_t heap_no;
+  uint16_t type_mode;
+  uint16_t call_size;
+} kn_log_buf[1024];
+
+void
+kn_log(lock_t *lock, trx_t *trx, uint32_t space, uint32_t page_no, uint32_t heap_no, uint16_t type_mode, uint16_t call_size)
+{
+  uint64_t idx= kn_log_idx.fetch_add(1, std::memory_order_relaxed) % (sizeof(kn_log_buf)/sizeof(kn_log_buf[0]));
+  kn_log_buf[idx].lock= lock;
+  kn_log_buf[idx].trx= trx;
+  kn_log_buf[idx].space= space;
+  kn_log_buf[idx].page_no= page_no;
+  kn_log_buf[idx].heap_no= heap_no;
+  kn_log_buf[idx].type_mode= type_mode;
+  kn_log_buf[idx].call_size= call_size;
+}
+
+
 /*********************************************************************//**
 Reports that a transaction id is insensible, i.e., in the future. */
 ATTRIBUTE_COLD
@@ -1339,7 +1364,8 @@ lock_rec_create_low(
 	ulint		heap_no,
 	dict_index_t*	index,
 	trx_t*		trx,
-	bool		holds_trx_mutex)
+	bool		holds_trx_mutex,
+	uint16_t call_site)
 {
 	lock_t*		lock;
 	ulint		n_bits;
@@ -1416,6 +1442,7 @@ lock_rec_create_low(
 	lock_rec_set_nth_bit(lock, heap_no);
 	index->table->n_rec_locks++;
 	ut_ad(index->table->get_ref_count() > 0 || !index->table->can_be_evicted);
+        kn_log(lock, trx, space, page_no, heap_no, lock->type_mode, call_site);
 
 #ifdef WITH_WSREP
 	if (c_lock && trx->is_wsrep()
@@ -1729,7 +1756,7 @@ lock_rec_enqueue_waiting(
 #ifdef WITH_WSREP
 		c_lock, thr,
 #endif
-		type_mode | LOCK_WAIT, block, heap_no, index, trx, TRUE);
+		type_mode | LOCK_WAIT, block, heap_no, index, trx, TRUE, 0x1000);
 
 	if (prdt && type_mode & LOCK_PREDICATE) {
 		lock_prdt_set_prdt(lock, prdt);
@@ -1804,7 +1831,7 @@ lock_rec_add_to_queue(
 	ulint			heap_no,/*!< in: heap number of the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in/out: transaction */
-	bool			caller_owns_trx_mutex)
+	bool			caller_owns_trx_mutex, uint16_t call_site)
 					/*!< in: TRUE if caller owns the
 					transaction mutex */
 {
@@ -1899,7 +1926,7 @@ lock_rec_add_to_queue(
 #ifdef WITH_WSREP
 		NULL, NULL,
 #endif
-		type_mode, block, heap_no, index, trx, caller_owns_trx_mutex);
+		type_mode, block, heap_no, index, trx, caller_owns_trx_mutex, call_site);
 }
 
 /*********************************************************************//**
@@ -1976,7 +2003,7 @@ lock_rec_lock(
         {
           /* Set the requested lock on the record. */
           lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx,
-                                true);
+                                true, 0x2001);
           err= DB_SUCCESS_LOCKED_REC;
         }
       }
@@ -2006,7 +2033,7 @@ lock_rec_lock(
 #ifdef WITH_WSREP
          NULL, NULL,
 #endif
-        mode, block, heap_no, index, trx, false);
+         mode, block, heap_no, index, trx, false, 0x3000);
 
     err= DB_SUCCESS_LOCKED_REC;
   }
@@ -2435,7 +2462,7 @@ lock_rec_inherit_to_gap(
 				LOCK_REC | LOCK_GAP
 				| ulint(lock_get_mode(lock)),
 				heir_block, heir_heap_no, lock->index,
-				lock->trx, FALSE);
+				lock->trx, FALSE, 0x2002);
 		}
 	}
 }
@@ -2472,7 +2499,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 				LOCK_REC | LOCK_GAP
 				| ulint(lock_get_mode(lock)),
 				block, heir_heap_no, lock->index,
-				lock->trx, FALSE);
+				lock->trx, FALSE, 0x2003);
 		}
 	}
 
@@ -2526,7 +2553,7 @@ lock_rec_move_low(
 
 		lock_rec_add_to_queue(
 			type_mode, receiver, receiver_heap_no,
-			lock->index, lock->trx, FALSE);
+			lock->index, lock->trx, FALSE, 0x2004);
 	}
 
 	ut_ad(lock_rec_get_first(lock_sys.rec_hash,
@@ -2696,7 +2723,7 @@ lock_move_reorganize_page(
 
 				lock_rec_add_to_queue(
 					lock->type_mode, block, new_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, 0x2005);
 			}
 
 			if (new_heap_no == PAGE_HEAP_NO_SUPREMUM) {
@@ -2816,7 +2843,7 @@ lock_move_rec_list_end(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, 0x2006);
 			}
 		}
 	}
@@ -2913,7 +2940,7 @@ lock_move_rec_list_start(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, 0x2007);
 			}
 		}
 
@@ -3008,7 +3035,7 @@ lock_rtr_move_rec_list(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, 0x2008);
 
 				rec_move[moved].moved = true;
 			}
@@ -5426,7 +5453,7 @@ lock_rec_convert_impl_to_expl_for_trx(
 	    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 				  block, heap_no, trx)) {
 		lock_rec_add_to_queue(LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
-				      block, heap_no, index, trx, true);
+				      block, heap_no, index, trx, true, 0x2009);
 	}
 
 	lock_mutex_exit();

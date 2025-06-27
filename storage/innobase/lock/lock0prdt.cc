@@ -492,7 +492,7 @@ lock_prdt_add_to_queue(
 		NULL, NULL, /* FIXME: replicate SPATIAL INDEX locks */
 #endif
 		type_mode, block, PRDT_HEAPNO, index, trx,
-		caller_owns_trx_mutex);
+		caller_owns_trx_mutex, 0xf002);
 
 	if (lock->type_mode & LOCK_PREDICATE) {
 		lock_prdt_set_prdt(lock, prdt);
@@ -834,7 +834,7 @@ lock_prdt_lock(
 			NULL, NULL, /* FIXME: replicate SPATIAL INDEX locks */
 #endif
 			ulint(mode) | type_mode, block, PRDT_HEAPNO,
-			index, trx, FALSE);
+			index, trx, FALSE, 0xf003);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 	} else {
@@ -953,7 +953,7 @@ lock_place_prdt_page_lock(
 			NULL, NULL, /* FIXME: replicate SPATIAL INDEX locks */
 #endif
 			mode, space, page_no, NULL, PRDT_HEAPNO,
-			index, trx, FALSE);
+			index, trx, FALSE, 0xf001);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
