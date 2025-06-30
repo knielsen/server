@@ -118,7 +118,8 @@ lock_rec_create(
 	ulint			heap_no,/*!< in: heap number of the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in,out: transaction */
-	bool			caller_owns_trx_mutex)
+	bool			caller_owns_trx_mutex,
+	uint16_t call_site)
 					/*!< in: TRUE if caller owns
 					trx mutex */
 {
@@ -130,5 +131,5 @@ lock_rec_create(
 		type_mode,
 		block->page.id.space(), block->page.id.page_no(),
 		block->frame, heap_no,
-		index, trx, caller_owns_trx_mutex);
+		index, trx, caller_owns_trx_mutex, call_site);
 }
