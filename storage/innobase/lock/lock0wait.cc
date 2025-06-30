@@ -515,6 +515,7 @@ lock_wait_check_and_cancel(
 #ifdef WITH_WSREP
                         if (!wsrep_is_BF_lock_timeout(trx)) {
 #endif /* WITH_WSREP */
+abort();
 				lock_cancel_waiting_and_release(trx->lock.wait_lock);
 #ifdef WITH_WSREP
                         }
