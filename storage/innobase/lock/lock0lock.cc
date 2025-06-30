@@ -1804,6 +1804,7 @@ lock_rec_add_to_queue(
 	ulint			heap_no,/*!< in: heap number of the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in/out: transaction */
+	bool			report_waits,
 	bool			caller_owns_trx_mutex)
 					/*!< in: TRUE if caller owns the
 					transaction mutex */
@@ -1864,6 +1865,7 @@ lock_rec_add_to_queue(
 	lock_t*		lock;
 	lock_t*		first_lock;
 	hash_table_t*	hash = lock_hash_get(type_mode);
+        bool		found_waiter = false;
 
 	/* Look for a waiting lock request on the same record or on a gap */
 
@@ -1874,11 +1876,16 @@ lock_rec_add_to_queue(
 		if (lock_get_wait(lock)
 		    && lock_rec_get_nth_bit(lock, heap_no)) {
 
-			break;
+			found_waiter= true;
+                        if (report_waits) {
+                          thd_rpl_deadlock_check(lock->trx->mysql_thd,
+                                                 trx->mysql_thd);
+                        } else
+                          break;
 		}
 	}
 
-	if (lock == NULL && !(type_mode & LOCK_WAIT)) {
+	if (!found_waiter && !(type_mode & LOCK_WAIT)) {
 
 		/* Look for a similar record lock on the same page:
 		if one is found and there are no waiting lock requests,
@@ -1976,7 +1983,8 @@ lock_rec_lock(
         {
           /* Set the requested lock on the record. */
           lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx,
-                                true);
+                                (trx->mysql_thd &&
+                                 thd_need_wait_reports(trx->mysql_thd)), true);
           err= DB_SUCCESS_LOCKED_REC;
         }
       }
@@ -2435,7 +2443,7 @@ lock_rec_inherit_to_gap(
 				LOCK_REC | LOCK_GAP
 				| ulint(lock_get_mode(lock)),
 				heir_block, heir_heap_no, lock->index,
-				lock->trx, FALSE);
+				lock->trx, FALSE, FALSE);
 		}
 	}
 }
@@ -2472,7 +2480,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 				LOCK_REC | LOCK_GAP
 				| ulint(lock_get_mode(lock)),
 				block, heir_heap_no, lock->index,
-				lock->trx, FALSE);
+				lock->trx, FALSE, FALSE);
 		}
 	}
 
@@ -2526,7 +2534,7 @@ lock_rec_move_low(
 
 		lock_rec_add_to_queue(
 			type_mode, receiver, receiver_heap_no,
-			lock->index, lock->trx, FALSE);
+			lock->index, lock->trx, FALSE, FALSE);
 	}
 
 	ut_ad(lock_rec_get_first(lock_sys.rec_hash,
@@ -2696,7 +2704,7 @@ lock_move_reorganize_page(
 
 				lock_rec_add_to_queue(
 					lock->type_mode, block, new_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, FALSE);
 			}
 
 			if (new_heap_no == PAGE_HEAP_NO_SUPREMUM) {
@@ -2816,7 +2824,7 @@ lock_move_rec_list_end(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, FALSE);
 			}
 		}
 	}
@@ -2913,7 +2921,7 @@ lock_move_rec_list_start(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, FALSE);
 			}
 		}
 
@@ -3008,7 +3016,7 @@ lock_rtr_move_rec_list(
 
 				lock_rec_add_to_queue(
 					type_mode, new_block, rec2_heap_no,
-					lock->index, lock->trx, FALSE);
+					lock->index, lock->trx, FALSE, FALSE);
 
 				rec_move[moved].moved = true;
 			}
@@ -5426,7 +5434,7 @@ lock_rec_convert_impl_to_expl_for_trx(
 	    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 				  block, heap_no, trx)) {
 		lock_rec_add_to_queue(LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
-				      block, heap_no, index, trx, true);
+				      block, heap_no, index, trx, false, true);
 	}
 
 	lock_mutex_exit();
