@@ -889,7 +889,8 @@ convert_kill_to_deadlock_error(rpl_group_info *rgi)
     return;
   err_code= thd->get_stmt_da()->sql_errno();
   if ((rgi->speculation == rpl_group_info::SPECULATE_OPTIMISTIC &&
-       err_code != ER_PRIOR_COMMIT_FAILED) ||
+       err_code != ER_PRIOR_COMMIT_FAILED &&
+       err_code != ER_LOCK_WAIT_TIMEOUT) ||
       ((err_code == ER_QUERY_INTERRUPTED || err_code == ER_CONNECTION_KILLED) &&
        rgi->killed_for_retry))
   {
