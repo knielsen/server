@@ -298,7 +298,7 @@ lock_wait_suspend_thread(
 	lock is released. But the wait can only be initiated by the
 	current thread which owns the transaction. Only acquire the
 	mutex if the wait_lock is still active. */
-	if (const lock_t* wait_lock = trx->lock.wait_lock) {
+	if (lock_t* wait_lock = trx->lock.wait_lock) {
 		lock_mutex_enter();
 		wait_lock = trx->lock.wait_lock;
 		if (wait_lock) {
@@ -306,6 +306,18 @@ lock_wait_suspend_thread(
 #ifndef DBUG_OFF
 			lock_mode = lock_get_mode(wait_lock);
 #endif
+			/* We need to do a check here for kill after we have
+			allocated our wait slot and marked ourselves as
+			waiting. Otherwise we might miss a kill that happened
+			just prior to that, and we will put the thread to
+			sleep and only wake it up 0-1 seconds later from the
+			lock_wait_timeout_thread. Such delay will hurt
+			parallel replication a lot, for example. */
+			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+				trx_mutex_enter(trx);
+				lock_cancel_waiting_and_release(wait_lock);
+				trx_mutex_exit(trx);
+			}
 		}
 		lock_mutex_exit();
 	}
