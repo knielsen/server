@@ -56,6 +56,9 @@ class ReadView;
 /** The value of innodb_deadlock_detect */
 extern my_bool	innobase_deadlock_detect;
 
+/** Optional enable for bugfix of some occasional parallel replication hang. */
+extern my_bool innodb_lock_wait_fix_enable;
+
 /*********************************************************************//**
 Gets the size of a lock struct.
 @return size in bytes */

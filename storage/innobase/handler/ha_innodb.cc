@@ -20220,6 +20220,12 @@ static MYSQL_SYSVAR_BOOL(encrypt_temporary_tables, innodb_encrypt_temporary_tabl
   "Enrypt the temporary table data.",
   NULL, NULL, false);
 
+static MYSQL_SYSVAR_BOOL(snc_lock_wait_fix, innodb_lock_wait_fix_enable,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable fixes for lock wait conflicts that were not reported correctly to "
+  "parallel replication",
+  NULL, NULL, false);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
@@ -20435,6 +20441,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(background_thread),
   MYSQL_SYSVAR(encrypt_temporary_tables),
   MYSQL_SYSVAR(snc_quick_drop_table),
+  MYSQL_SYSVAR(snc_lock_wait_fix),
 
   NULL
 };

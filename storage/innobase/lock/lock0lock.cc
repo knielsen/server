@@ -55,6 +55,9 @@ ulong innodb_lock_schedule_algorithm;
 /** The value of innodb_deadlock_detect */
 my_bool	innobase_deadlock_detect;
 
+/** Optional enable for bugfix of some occasional parallel replication hang. */
+my_bool innodb_lock_wait_fix_enable= false;
+
 /*********************************************************************//**
 Checks if a waiting record lock request still has to wait in a queue.
 @return lock that is causing the wait */
@@ -1982,7 +1985,8 @@ lock_rec_lock(
         {
           /* Set the requested lock on the record. */
           lock_rec_add_to_queue(LOCK_REC | mode, block, heap_no, index, trx,
-                                (trx->mysql_thd &&
+                                (innodb_lock_wait_fix_enable &&
+                                 trx->mysql_thd &&
                                  thd_need_wait_reports(trx->mysql_thd)), true);
           err= DB_SUCCESS_LOCKED_REC;
         }

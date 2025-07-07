@@ -313,7 +313,8 @@ lock_wait_suspend_thread(
 			sleep and only wake it up 0-1 seconds later from the
 			lock_wait_timeout_thread. Such delay will hurt
 			parallel replication a lot, for example. */
-			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+			if (innodb_lock_wait_fix_enable &&
+			    UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				trx_mutex_enter(trx);
 				lock_cancel_waiting_and_release(wait_lock);
 				trx_mutex_exit(trx);
