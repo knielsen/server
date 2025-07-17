@@ -5145,9 +5145,24 @@ thd_rpl_deadlock_check(MYSQL_THD thd, MYSQL_THD other_thd)
       order on the GTID sub_id, and rollback the later transaction to allow the
       earlier transaction to commit first.
     */
-    if (!rgi->gtid_sub_id || !other_rgi->gtid_sub_id ||
-        rgi->gtid_sub_id > other_rgi->gtid_sub_id)
+    uint64 sub_id= rgi->gtid_sub_id;
+    uint64 other_sub_id= other_rgi->gtid_sub_id;
+    if (!sub_id || !other_sub_id || sub_id > other_sub_id)
       return 0;
+    /*
+      Store the blocked transaction's sub_id and rgi into the blocking
+      transaction. This allows the blocking transaction to attempt to retry as
+      soon as the blocked transaction has committed (in aggressive mode), and
+      not wait for _all_ prior transactions to commit.
+
+      Only store the first conflicting sub_id, to ensure consistency with the
+      conflicting_rgi.
+    */
+    uint64 expected_sub_id= 0;
+    if (other_rgi->conflicting_sub_id.compare_exchange_strong(
+          expected_sub_id, sub_id,
+          std::memory_order_relaxed, std::memory_order_relaxed))
+      other_rgi->conflicting_rgi= rgi;
   }
   else
   {

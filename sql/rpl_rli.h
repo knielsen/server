@@ -669,6 +669,17 @@ struct rpl_group_info
   rpl_gtid current_gtid;
   uint64 commit_id;
   /*
+    When non-zero and deadlock killed, this is the sub_id of the conflicting
+    transaction.
+
+    In aggressive mode, this is used to wait for the specific conflicting
+    transaction to commit before retrying (as opposed to all prior commits
+    in optimistic); this allows more parallelism at the cost of potentially
+    more conflicts.
+  */
+  std::atomic<uint64> conflicting_sub_id;
+  rpl_group_info *conflicting_rgi;
+  /*
     This is used to keep transaction commit order.
     We will signal this when we commit, and can register it to wait for the
     commit_orderer of the previous commit to signal us.

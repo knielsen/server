@@ -2140,6 +2140,8 @@ rpl_group_info::reinit(Relay_log_info *rli)
   last_event_start_time= 0;
   gtid_sub_id= 0;
   commit_id= 0;
+  conflicting_sub_id.store(0, std::memory_order_relaxed);
+  conflicting_rgi= NULL;
   gtid_pending= false;
   worker_error= 0;
   row_stmt_start_timestamp= 0;

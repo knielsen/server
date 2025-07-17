@@ -326,6 +326,20 @@ register_wait_for_prior_event_group_commit(rpl_group_info *rgi,
 }
 
 
+static void
+register_wait_for_conflicting_event_group(rpl_group_info *rgi,
+                                          rpl_parallel_entry *entry)
+{
+  mysql_mutex_assert_owner(&entry->LOCK_parallel_entry);
+  if (rgi->conflicting_sub_id > entry->last_committed_sub_id)
+  {
+    wait_for_commit *waitee= &rgi->conflicting_rgi->commit_orderer;
+    if (waitee)
+      rgi->commit_orderer.register_wait_for_prior_commit(waitee);
+  }
+}
+
+
 /*
   Wait for prior transactions in the default domain_id to complete before
   starting to replicate in an alternate domain_id configured to replicate
@@ -988,6 +1002,7 @@ do_retry:
   statistic_increment(slave_retried_transactions, LOCK_status);
   mysql_mutex_unlock(&rli->data_lock);
 
+  bool need_register_for_prior= false;
   for (;;)
   {
     mysql_mutex_lock(&entry->LOCK_parallel_entry);
@@ -997,7 +1012,17 @@ do_retry:
 #endif
         rgi->gtid_sub_id < entry->stop_on_error_sub_id)
     {
-      register_wait_for_prior_event_group_commit(rgi, entry);
+      if (rli->mi->parallel_mode >= SLAVE_PARALLEL_AGGRESSIVE &&
+          rgi->conflicting_sub_id != 0 &&
+          rgi->conflicting_sub_id < rgi->wait_commit_sub_id &&
+          rgi->speculation == rpl_group_info::SPECULATE_OPTIMISTIC &&
+          retries + 2 < slave_trans_retries)
+      {
+        register_wait_for_conflicting_event_group(rgi, entry);
+        need_register_for_prior= true;
+      }
+      else
+        register_wait_for_prior_event_group_commit(rgi, entry);
     }
     else
     {
@@ -1017,12 +1042,13 @@ do_retry:
       Let us wait for all prior transactions to complete before trying again.
       This way, we avoid repeatedly conflicting with and getting deadlock
       killed by the same earlier transaction.
+
+      In aggressive mode, we try to identify the transaction we conflicted
+      with (if within the same domain_id), and only wait until that one
+      committed.
     */
     if (!(err= thd->wait_for_prior_commit()))
-    {
-      rgi->speculation = rpl_group_info::SPECULATE_WAIT;
       break;
-    }
 
     convert_kill_to_deadlock_error(rgi);
     if (!has_temporary_error(thd))
@@ -1043,6 +1069,17 @@ do_retry:
         my_sleep(100000);
     });
   }
+
+  if (need_register_for_prior)
+  {
+    mysql_mutex_lock(&entry->LOCK_parallel_entry);
+    register_wait_for_prior_event_group_commit(rgi, entry);
+    mysql_mutex_unlock(&entry->LOCK_parallel_entry);
+    rgi->conflicting_sub_id= 0;
+    rgi->conflicting_rgi= NULL;
+  }
+  else
+    rgi->speculation = rpl_group_info::SPECULATE_WAIT;
 
   /*
     Let us clear any lingering deadlock kill one more time, here after
