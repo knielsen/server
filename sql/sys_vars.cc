@@ -1411,6 +1411,27 @@ static Sys_var_double Sys_long_query_time(
        ON_UPDATE(update_cached_long_query_time));
 
 
+static bool update_snc_replication_trx_slow_commit(sys_var *self, THD *thd,
+                                                   enum_var_type type)
+{
+  opt_snc_replication_trx_slow_commit_usec=
+    double2ulonglong(opt_snc_replication_trx_slow_commit_double * 1e6);
+  return false;
+}
+
+static Sys_var_double Sys_snc_replication_trx_slow_commit(
+       "snc_replication_trx_slow_commit",
+       "Log slave commits where the transaction has taken more than "
+       "snc_replication_trx_slow_commit seconds to execute to the error log. "
+       "Logs the GTID for the slow transaction, as well as all following "
+       "GTIDs that waited for that transaction to commit. The argument will "
+       "be treated as a decimal value with microsecond precision",
+       GLOBAL_VAR(opt_snc_replication_trx_slow_commit_double),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT),
+       DEFAULT(LONG_TIMEOUT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_snc_replication_trx_slow_commit));
+
 static bool update_cached_max_statement_time(sys_var *self, THD *thd,
                                          enum_var_type type)
 {

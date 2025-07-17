@@ -8062,6 +8062,19 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
                                            commit_name.length);
         commit_id= entry->val_int(&null_value);
       });
+
+    bool log_slow_gtids= false;
+    ulonglong spent_usec= 0;
+    StringBuffer<128> slow_gtid_list;
+    if (leader->thd->rgi_slave &&
+        leader->thd->rgi_slave->group_start_time != ~(ulonglong)0)
+    {
+      spent_usec=
+        leader->thd->current_utime() - leader->thd->rgi_slave->group_start_time;
+      if (spent_usec >= opt_snc_replication_trx_slow_commit_usec)
+        log_slow_gtids= true;
+    }
+
     /*
       Commit every transaction in the queue.
 
@@ -8077,6 +8090,16 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
       set_current_thd(current->thd);
       binlog_cache_mngr *cache_mngr= current->cache_mngr;
 
+      if (unlikely(log_slow_gtids) && current->thd->rgi_slave)
+      {
+        const rpl_gtid *gtid= &current->thd->rgi_slave->current_gtid;
+        slow_gtid_list.append_char(' ');
+        slow_gtid_list.append_ulonglong((ulonglong)gtid->domain_id);
+        slow_gtid_list.append_char('-');
+        slow_gtid_list.append_ulonglong((ulonglong)gtid->server_id);
+        slow_gtid_list.append_char('-');
+        slow_gtid_list.append_ulonglong((ulonglong)gtid->seq_no);
+      }
       /*
         We already checked before that at least one cache is non-empty; if both
         are empty we would have skipped calling into here.
@@ -8111,6 +8134,10 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
       }
     }
     set_current_thd(leader->thd);
+    if (unlikely(log_slow_gtids))
+      sql_print_information("Slave SQL thread: Slow commit (%llu usec), "
+                            "GTIDs:%s", spent_usec,
+                            slow_gtid_list.c_ptr_safe());
 
     bool synced= 0;
     if (unlikely(flush_and_sync(&synced)))

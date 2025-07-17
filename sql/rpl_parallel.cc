@@ -1088,6 +1088,8 @@ do_retry:
   */
   thd->reset_killed();
 
+  /* Reset the accounting of transaction time. */
+  rgi->group_start_time= ~(ulonglong)0;
   strmake_buf(log_name, ir->name);
   if ((fd= open_binlog(&rlog, log_name, &errmsg)) <0)
   {
@@ -1541,6 +1543,8 @@ handle_rpl_parallel_thread(void *arg)
           slave_output_error_info(rgi, thd);
           signal_error_to_sql_driver_thread(thd, rgi, 1);
         }
+        /* Reset the accounting of transaction time. */
+        rgi->group_start_time= ~(ulonglong)0;
       }
 
       group_rgi= rgi;

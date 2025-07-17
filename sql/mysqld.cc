@@ -565,6 +565,8 @@ ulong opt_slave_parallel_max_queued= 131072;
 my_bool opt_gtid_ignore_duplicates= FALSE;
 uint opt_gtid_cleanup_batch_size= 64;
 uint opt_slave_parallel_print_all_deadlocks= 0;
+double opt_snc_replication_trx_slow_commit_double;
+ulonglong opt_snc_replication_trx_slow_commit_usec;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -9048,6 +9050,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     (global_system_variables.long_query_time_double * 1e6 + 0.1);
   global_system_variables.max_statement_time= (ulonglong)
     (global_system_variables.max_statement_time_double * 1e6 + 0.1);
+  opt_snc_replication_trx_slow_commit_usec= (ulonglong)
+    (opt_snc_replication_trx_slow_commit_double * 1e6 + 0.1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;

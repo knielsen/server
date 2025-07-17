@@ -4000,6 +4000,8 @@ apply_event_and_update_pos_for_parallel(Log_event* ev, THD* thd,
 {
   mysql_mutex_assert_not_owner(&rgi->rli->data_lock);
   int reason= apply_event_and_update_pos_setup(ev, thd, rgi);
+  if (rgi->group_start_time == ~(ulonglong)0)
+    rgi->group_start_time= thd->start_utime;
   /*
     In parallel replication, sql_slave_skip_counter is handled in the SQL
     driver thread, so 23 should never see EVENT_SKIP_COUNT here.

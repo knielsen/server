@@ -269,6 +269,8 @@ extern ulong opt_slave_parallel_threads_active;
 extern ulong opt_slave_parallel_max_queued;
 extern ulong opt_slave_parallel_mode;
 extern uint opt_slave_parallel_print_all_deadlocks;
+extern double opt_snc_replication_trx_slow_commit_double;
+extern ulonglong opt_snc_replication_trx_slow_commit_usec;
 extern ulong opt_binlog_commit_wait_count;
 extern ulong opt_binlog_commit_wait_usec;
 extern my_bool opt_gtid_ignore_duplicates;
