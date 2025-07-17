@@ -870,6 +870,8 @@ struct rpl_group_info
   char event_relay_log_name_buf[FN_REFLEN];
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
+  /* Time at the start of the event group, or ~0 if not yet set. */
+  ulonglong group_start_time;
   /*
     The master log name for current event. Only used in parallel replication.
   */

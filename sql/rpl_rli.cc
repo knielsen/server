@@ -2149,6 +2149,7 @@ rpl_group_info::reinit(Relay_log_info *rli)
   last_event_start_time= 0;
   gtid_sub_id= 0;
   commit_id= 0;
+  group_start_time= ~(ulonglong)0;
   gtid_pending= false;
   worker_error= 0;
   row_stmt_start_timestamp= 0;
