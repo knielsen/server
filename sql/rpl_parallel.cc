@@ -1245,6 +1245,7 @@ do_retry:
     possibility of an old deadlock kill lingering on beyond this point.
   */
   thd->reset_killed();
+
 #ifdef WITH_WSREP
   if (WSREP(thd))
   {
@@ -1261,6 +1262,9 @@ do_retry:
     WSREP_DEBUG("parallel slave retry, after trx start");
   }
 #endif /* WITH_WSREP */
+
+  /* Reset the accounting of transaction time. */
+  rgi->group_start_time= ~(ulonglong)0;
   strmake_buf(log_name, ir->name);
   if ((fd= open_binlog(&rlog, log_name, &errmsg)) <0)
   {
@@ -1728,6 +1732,8 @@ handle_rpl_parallel_thread(void *arg)
           slave_output_error_info(rgi, thd);
           signal_error_to_sql_driver_thread(thd, rgi, 1);
         }
+        /* Reset the accounting of transaction time. */
+        rgi->group_start_time= ~(ulonglong)0;
       }
 
       group_rgi= rgi;
