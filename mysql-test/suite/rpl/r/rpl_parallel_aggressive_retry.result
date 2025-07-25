@@ -1,0 +1,469 @@
+include/master-slave.inc
+[connection master]
+connection slave;
+include/stop_slave.inc
+SET STATEMENT sql_log_bin=0 FOR
+ALTER TABLE mysql.gtid_slave_pos ENGINE=InnoDB;
+SET @old_threads= @@GLOBAL.slave_parallel_threads;
+SET GLOBAL slave_parallel_threads= 20;
+SET @old_mode= @@GLOBAL.slave_parallel_mode;
+SET GLOBAL slave_parallel_mode= aggressive;
+SET @old_retries= @@GLOBAL.slave_transaction_retries;
+SET GLOBAL slave_transaction_retries= 10;
+SET @old_timeout= @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout= 1000000;
+CHANGE MASTER TO master_use_gtid= slave_pos;
+include/start_slave.inc
+connection master;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0), (2, 0), (3, 0), (4, 0);
+INSERT INTO t2 VALUES (1, 0), (2, 0), (3, 0), (4, 0);
+include/save_master_gtid.inc
+connection slave;
+include/sync_with_master_gtid.inc
+connection slave1;
+BEGIN;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+a	b
+1	0
+connection server_2;
+BEGIN;
+SELECT * FROM t1 WHERE a=2 FOR UPDATE;
+a	b
+2	0
+connection slave;
+connection master;
+BEGIN;
+UPDATE t1 SET b=1 WHERE a=1;
+UPDATE t2 SET b=1 WHERE a=1;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=2 WHERE a=2;
+UPDATE t2 SET b=2 WHERE a=2;
+COMMIT;
+BEGIN;
+UPDATE t2 SET b=3 WHERE a=1;
+UPDATE t2 SET b=3 WHERE a=2;
+UPDATE t1 SET b=3 WHERE a=3;
+COMMIT;
+connection slave;
+connection slave1;
+ROLLBACK;
+BEGIN;
+SELECT * FROM t1 WHERE a=3 FOR UPDATE;
+a	b
+3	0
+connection slave;
+connection slave1;
+ROLLBACK;
+connection server_2;
+ROLLBACK;
+connection master;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	3
+2	3
+3	0
+4	0
+include/save_master_gtid.inc
+connection slave;
+include/sync_with_master_gtid.inc
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	3
+2	3
+3	0
+4	0
+Transaction retries: 2 (expected 2)
+connection master;
+INSERT INTO t1 SELECT 100+seq, 0 FROM seq_1_to_20;
+INSERT INTO t2 SELECT 100+seq, 0 FROM seq_1_to_20;
+include/save_master_gtid.inc
+connection slave;
+include/sync_with_master_gtid.inc
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+1 FOR UPDATE;
+a	b
+101	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+2 FOR UPDATE;
+a	b
+102	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+3 FOR UPDATE;
+a	b
+103	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+4 FOR UPDATE;
+a	b
+104	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+5 FOR UPDATE;
+a	b
+105	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+6 FOR UPDATE;
+a	b
+106	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+7 FOR UPDATE;
+a	b
+107	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+8 FOR UPDATE;
+a	b
+108	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+9 FOR UPDATE;
+a	b
+109	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+10 FOR UPDATE;
+a	b
+110	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+11 FOR UPDATE;
+a	b
+111	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+12 FOR UPDATE;
+a	b
+112	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+13 FOR UPDATE;
+a	b
+113	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+14 FOR UPDATE;
+a	b
+114	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+15 FOR UPDATE;
+a	b
+115	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+16 FOR UPDATE;
+a	b
+116	0
+connect  con$i,127.0.0.1,root,,test,$SERVER_MYPORT_2,;
+BEGIN;
+SELECT * FROM t1 WHERE a=100+17 FOR UPDATE;
+a	b
+117	0
+connection master;
+BEGIN;
+UPDATE t1 SET b=1 WHERE a=100+1;
+UPDATE t2 SET b=1 WHERE a=100+1;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=2 WHERE a=100+2;
+UPDATE t2 SET b=2 WHERE a=100+2;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=3 WHERE a=100+3;
+UPDATE t2 SET b=3 WHERE a=100+3;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=4 WHERE a=100+4;
+UPDATE t2 SET b=4 WHERE a=100+4;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=5 WHERE a=100+5;
+UPDATE t2 SET b=5 WHERE a=100+5;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=6 WHERE a=100+6;
+UPDATE t2 SET b=6 WHERE a=100+6;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=7 WHERE a=100+7;
+UPDATE t2 SET b=7 WHERE a=100+7;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=8 WHERE a=100+8;
+UPDATE t2 SET b=8 WHERE a=100+8;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=9 WHERE a=100+9;
+UPDATE t2 SET b=9 WHERE a=100+9;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=10 WHERE a=100+10;
+UPDATE t2 SET b=10 WHERE a=100+10;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=11 WHERE a=100+11;
+UPDATE t2 SET b=11 WHERE a=100+11;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=12 WHERE a=100+12;
+UPDATE t2 SET b=12 WHERE a=100+12;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=13 WHERE a=100+13;
+UPDATE t2 SET b=13 WHERE a=100+13;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=14 WHERE a=100+14;
+UPDATE t2 SET b=14 WHERE a=100+14;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=15 WHERE a=100+15;
+UPDATE t2 SET b=15 WHERE a=100+15;
+COMMIT;
+BEGIN;
+UPDATE t1 SET b=16 WHERE a=100+16;
+UPDATE t2 SET b=16 WHERE a=100+16;
+COMMIT;
+BEGIN;
+UPDATE t2 SET b=17 WHERE a=100+1;
+UPDATE t2 SET b=17 WHERE a=100+2;
+UPDATE t2 SET b=17 WHERE a=100+3;
+UPDATE t2 SET b=17 WHERE a=100+4;
+UPDATE t2 SET b=17 WHERE a=100+5;
+UPDATE t2 SET b=17 WHERE a=100+6;
+UPDATE t2 SET b=17 WHERE a=100+7;
+UPDATE t2 SET b=17 WHERE a=100+8;
+UPDATE t2 SET b=17 WHERE a=100+9;
+UPDATE t2 SET b=17 WHERE a=100+10;
+UPDATE t2 SET b=17 WHERE a=100+11;
+UPDATE t2 SET b=17 WHERE a=100+12;
+UPDATE t2 SET b=17 WHERE a=100+13;
+UPDATE t2 SET b=17 WHERE a=100+14;
+UPDATE t2 SET b=17 WHERE a=100+15;
+UPDATE t2 SET b=17 WHERE a=100+16;
+UPDATE t1 SET b=17 WHERE a=100+17;
+UPDATE t2 SET b=17 WHERE a=100+17;
+COMMIT;
+connection slave;
+connection slave;
+connection con1;
+ROLLBACK;
+disconnect con1;
+connection slave;
+connection slave;
+connection con2;
+ROLLBACK;
+disconnect con2;
+connection slave;
+connection slave;
+connection con3;
+ROLLBACK;
+disconnect con3;
+connection slave;
+connection slave;
+connection con4;
+ROLLBACK;
+disconnect con4;
+connection slave;
+connection slave;
+connection con5;
+ROLLBACK;
+disconnect con5;
+connection slave;
+connection slave;
+connection con6;
+ROLLBACK;
+disconnect con6;
+connection slave;
+connection slave;
+connection con7;
+ROLLBACK;
+disconnect con7;
+connection slave;
+connection slave;
+connection con8;
+ROLLBACK;
+disconnect con8;
+connection slave;
+connection slave;
+connection con9;
+ROLLBACK;
+disconnect con9;
+connection slave;
+connection slave;
+connection con10;
+ROLLBACK;
+disconnect con10;
+connection slave;
+connection slave;
+connection con11;
+ROLLBACK;
+disconnect con11;
+connection slave;
+connection slave;
+connection con12;
+ROLLBACK;
+disconnect con12;
+connection slave;
+connection slave;
+connection con13;
+ROLLBACK;
+disconnect con13;
+connection slave;
+connection slave;
+connection con14;
+ROLLBACK;
+disconnect con14;
+connection slave;
+connection slave;
+connection con15;
+ROLLBACK;
+disconnect con15;
+connection slave;
+connection slave;
+connection con16;
+ROLLBACK;
+disconnect con16;
+connection slave;
+connection slave;
+connection con17;
+ROLLBACK;
+connection master;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	0
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+110	10
+111	11
+112	12
+113	13
+114	14
+115	15
+116	16
+117	17
+118	0
+119	0
+120	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	3
+2	3
+3	0
+4	0
+101	17
+102	17
+103	17
+104	17
+105	17
+106	17
+107	17
+108	17
+109	17
+110	17
+111	17
+112	17
+113	17
+114	17
+115	17
+116	17
+117	17
+118	0
+119	0
+120	0
+include/save_master_gtid.inc
+connection slave;
+include/sync_with_master_gtid.inc
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	0
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+110	10
+111	11
+112	12
+113	13
+114	14
+115	15
+116	16
+117	17
+118	0
+119	0
+120	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	3
+2	3
+3	0
+4	0
+101	17
+102	17
+103	17
+104	17
+105	17
+106	17
+107	17
+108	17
+109	17
+110	17
+111	17
+112	17
+113	17
+114	17
+115	17
+116	17
+117	17
+118	0
+119	0
+120	0
+Transaction retries: 9 (expected 9)
+connection slave;
+include/stop_slave.inc
+SET GLOBAL innodb_lock_wait_timeout= @old_timeout;
+SET GLOBAL slave_transaction_retries= @old_retries;
+SET GLOBAL slave_parallel_mode= @old_mode;
+SET GLOBAL slave_parallel_threads= @old_threads;
+include/start_slave.inc
+connection master;
+DROP TABLE t1, t2;
+include/rpl_end.inc
