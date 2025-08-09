@@ -366,7 +366,7 @@ bool THD::open_temporary_table(TABLE_LIST *tl)
   if (rgi_slave &&
       rgi_slave->is_parallel_exec &&
       find_temporary_table(tl) &&
-      wait_for_prior_commit())
+      rgi_slave->wait_for_prior_commit(this))
     DBUG_RETURN(true);
 
   /*
@@ -395,7 +395,7 @@ bool THD::open_temporary_table(TABLE_LIST *tl)
     */
     if (table && rgi_slave &&
         rgi_slave->is_parallel_exec &&
-        wait_for_prior_commit())
+        rgi_slave->wait_for_prior_commit(this))
       DBUG_RETURN(true);
 
     if (!table && is_error())
@@ -951,7 +951,7 @@ TMP_TABLE_SHARE *THD::create_temporary_table(LEX_CUSTRING *frm,
   /* Temporary tables are not safe for parallel replication. */
   if (rgi_slave &&
       rgi_slave->is_parallel_exec &&
-      wait_for_prior_commit())
+      rgi_slave->wait_for_prior_commit(this))
     DBUG_RETURN(NULL);
 
   /* Create the table definition key for the temporary table. */
@@ -1209,7 +1209,7 @@ bool THD::use_temporary_table(TABLE *table, TABLE **out_table)
   */
   if (rgi_slave &&
       rgi_slave->is_parallel_exec &&
-      wait_for_prior_commit())
+      rgi_slave->wait_for_prior_commit(this))
     DBUG_RETURN(true);
 
   /*

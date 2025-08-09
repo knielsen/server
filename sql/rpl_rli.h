@@ -686,6 +686,11 @@ struct rpl_group_info
   */
   wait_for_commit commit_orderer;
   /*
+    This event group should be standby until count_prioring_event_groups
+    reaches the value of standby_count.
+  */
+  uint64 standby_count;
+  /*
     If non-zero, the sub_id of a prior event group whose commit we have to wait
     for before committing ourselves. Then wait_commit_group_info points to the
     event group to wait for.
@@ -783,6 +788,13 @@ struct rpl_group_info
     counting one event group twice.
   */
   bool did_mark_start_commit;
+  /*
+    Whether we did pre_wait_prior_signal_standby(), or still need to do so.
+    Note that this can be set back to false by unwait_prior_signal_standby(),
+    requiring another pre_wait_prior_signal_standby() before completing the
+    event group.
+  */
+  bool did_prioring_bump;
   /* Copy of flags2 from GTID event. */
   uchar gtid_ev_flags2;
   enum {
@@ -950,6 +962,7 @@ struct rpl_group_info
   void mark_start_commit();
   char *gtid_info();
   void unmark_start_commit();
+  int wait_for_prior_commit(THD *thd);
 
   longlong get_row_stmt_start_timestamp()
   {

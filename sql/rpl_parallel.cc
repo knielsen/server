@@ -27,6 +27,7 @@ struct rpl_parallel_thread_pool global_rpl_thread_pool;
 
 static void signal_error_to_sql_driver_thread(THD *thd, rpl_group_info *rgi,
                                               int err);
+static void pre_wait_prior_signal_standby(rpl_group_info *rgi);
 
 static int
 rpt_handle_event(rpl_parallel_thread::queued_event *qev,
@@ -150,6 +151,9 @@ finish_event_group(rpl_parallel_thread *rpt, uint64 sub_id,
   THD *thd= rpt->thd;
   wait_for_commit *wfc= &rgi->commit_orderer;
   int err;
+
+  /* Do it here if we somehow did not do so before. */
+  pre_wait_prior_signal_standby(rgi);
 
   thd->get_stmt_da()->set_overwrite_status(true);
   /*
@@ -442,6 +446,114 @@ do_gco_wait(rpl_group_info *rgi, group_commit_orderer *gco,
   }
   else
     return false;
+}
+
+
+/*
+  Do not start parallel execution of this event group until less than
+  --slave-parallel-transactions prior event groups are still executing in
+  this domain (not yet reached wait_for_prior_commit).
+*/
+static void
+do_standby_wait(THD *thd, rpl_group_info *rgi)
+{
+  rpl_parallel_entry *e= rgi->parallel_entry;
+  uint64 count=
+    e->count_prioring_event_groups.load(std::memory_order_acquire) /
+    STANDBY_COUNT_BATCH;
+  uint64 standby_count= rgi->standby_count / STANDBY_COUNT_BATCH;
+  if (count >= standby_count)
+    return;
+
+  uint64 idx= standby_count % e->standby_arr_count;
+  bool abort= false;
+  PSI_stage_info old_stage;
+  mysql_mutex_lock(&e->standby_arr[idx].mutex);
+  thd->ENTER_COND(&e->standby_arr[idx].cond, &e->standby_arr[idx].mutex,
+                  &stage_slave_standby_transaction, &old_stage);
+  for (;;)
+  {
+    count= e->count_prioring_event_groups.load(std::memory_order_relaxed) /
+      STANDBY_COUNT_BATCH;
+    if (count >= standby_count)
+      break;
+    if (unlikely(thd->check_killed(1)))
+    {
+      /*
+        Thread was killed, abort the wait.
+        We do not have to handle the error here. We will allow the standby
+        transaction to start, it will detect the kill and abort normally.
+      */
+      break;
+    }
+    mysql_cond_wait(&e->standby_arr[idx].cond, &e->standby_arr[idx].mutex);
+  }
+  thd->EXIT_COND(&old_stage);
+}
+
+
+/*
+  Called when this event group has been applied, and is ready to commit,
+  but might still need to wait for a prior commit to complete. This is used
+  to activate later standby transactions, as needed.
+*/
+static void
+pre_wait_prior_signal_standby(rpl_group_info *rgi)
+{
+  rpl_parallel_entry *e= rgi->parallel_entry;
+  if (rgi->did_prioring_bump)
+    return;
+  uint64 count= 1 +
+    e->count_prioring_event_groups.fetch_add(1, std::memory_order_release);
+  rgi->did_prioring_bump= true;
+  if (!e->need_standby_signal || (count % STANDBY_COUNT_BATCH) != 0)
+    return;
+  uint64 idx= (count / STANDBY_COUNT_BATCH) % e->standby_arr_count;
+  mysql_mutex_lock(&e->standby_arr[idx].mutex);
+  /*
+    Note the mutex lock/unlock is necessary here, even though we update the
+    counter atomically outside of it. Another thread might be holding the
+    mutex and have read the count just before we updated it, and is going to
+    to mysql_cond_wait() but has not yet done so. Taking the mutex here
+    ensures that such a thread will have time to do the wait before we can
+    broadcast the signal, ensuring the signal will not be lost.
+  */
+  mysql_cond_broadcast(&e->standby_arr[idx].cond);
+  mysql_mutex_unlock(&e->standby_arr[idx].mutex);
+}
+
+
+/*
+  This is called during transaction retry after a deadlock or other temporary
+  failure. While the failed transaction is waiting for a prior commit to
+  complete before starting the retry, later standby transactions are activated.
+  But when the wait is over and the retry begins, this is called to mark that
+  now one more transaction is active and thereby limit activation of further
+  standby transactions.
+*/
+static void
+unwait_prior_signal_standby(rpl_group_info *rgi)
+{
+  rpl_parallel_entry *e= rgi->parallel_entry;
+  if (rgi->did_prioring_bump)
+  {
+    e->count_prioring_event_groups.fetch_sub(1, std::memory_order_relaxed);
+    rgi->did_prioring_bump= false;
+  }
+}
+
+
+/*
+  Does THD::wait_for_prior_commit(), but activates a later standby transaction
+  (if any) while waiting, to improve parallel replication concurrency.
+*/
+int
+rpl_group_info::wait_for_prior_commit(THD *thd)
+{
+  pre_wait_prior_signal_standby(this);
+  int err= thd->wait_for_prior_commit();
+  unwait_prior_signal_standby(this);
+  return err;
 }
 
 
@@ -1002,6 +1114,12 @@ do_retry:
   statistic_increment(slave_retried_transactions, LOCK_status);
   mysql_mutex_unlock(&rli->data_lock);
 
+  /*
+    As we are now going to wait for a prior transaction to commit, let's
+    allow a subsequent standby transaction to start (if we did not already).
+  */
+  pre_wait_prior_signal_standby(rgi);
+
   bool need_register_for_prior= false;
   for (;;)
   {
@@ -1069,6 +1187,13 @@ do_retry:
         my_sleep(100000);
     });
   }
+
+  /*
+    Now that we have waited for prior commit and are ready to start the
+    re-apply of the transaction, mark that we are active and limit the amount
+    of future standby transactions that will be activated.
+  */
+  unwait_prior_signal_standby(rgi);
 
   if (need_register_for_prior)
   {
@@ -1221,7 +1346,10 @@ do_retry:
       goto err;
     }
     if (is_group_ending(ev, event_type) == 1)
+    {
       rgi->mark_start_commit();
+      pre_wait_prior_signal_standby(rgi);
+    }
 
     err= rpt_handle_event(qev, rpt);
     ++event_count;
@@ -1463,6 +1591,8 @@ handle_rpl_parallel_thread(void *arg)
           rpt->loc_free_rgi(group_rgi);
         }
 
+        do_standby_wait(thd, rgi);
+
         thd->tx_isolation= (enum_tx_isolation)thd->variables.tx_isolation;
         in_event_group= true;
         /*
@@ -1538,7 +1668,7 @@ handle_rpl_parallel_thread(void *arg)
           commit.
         */
         if (rgi->speculation == rpl_group_info::SPECULATE_WAIT &&
-            (err= thd->wait_for_prior_commit()))
+            (err= rgi->wait_for_prior_commit(thd)))
         {
           slave_output_error_info(rgi, thd);
           signal_error_to_sql_driver_thread(thd, rgi, 1);
@@ -1579,6 +1709,7 @@ handle_rpl_parallel_thread(void *arg)
           DEBUG_SYNC(thd, "rpl_parallel_before_mark_start_commit");
           rgi->mark_start_commit();
           DEBUG_SYNC(thd, "rpl_parallel_after_mark_start_commit");
+          pre_wait_prior_signal_standby(rgi);
         }
       }
 
@@ -1635,7 +1766,7 @@ handle_rpl_parallel_thread(void *arg)
       {
         delete qev->ev;
         thd->get_stmt_da()->set_overwrite_status(true);
-        err= thd->wait_for_prior_commit();
+        err= rgi->wait_for_prior_commit(thd);
         thd->get_stmt_da()->set_overwrite_status(false);
       }
 
@@ -2197,6 +2328,16 @@ rpl_parallel_thread::get_rgi(Relay_log_info *rli, Gtid_log_event *gtid_ev,
   rgi->retry_start_offset= rli->future_event_relay_log_pos-event_size;
   rgi->retry_event_count= 0;
   rgi->killed_for_retry= rpl_group_info::RETRY_KILL_NONE;
+  ulong standby_offset= opt_slave_domain_parallel_transactions;
+  if (!standby_offset)
+    rgi->standby_count= 0;
+  else if (likely(standby_offset < e->count_queued_event_groups))
+  {
+    rgi->standby_count= e->count_queued_event_groups - standby_offset - 1;
+    e->need_standby_signal= true;
+  }
+  else
+    rgi->standby_count= 0;
 
   return rgi;
 }
@@ -2488,6 +2629,11 @@ free_rpl_parallel_entry(void *element)
     dealloc_gco(e->current_gco);
     e->current_gco= prev_gco;
   }
+  for (size_t i= 0; i < e->standby_arr_count; ++i)
+  {
+    mysql_mutex_destroy(&e->standby_arr[i].mutex);
+    mysql_cond_destroy(&e->standby_arr[i].cond);
+  }
   mysql_cond_destroy(&e->COND_parallel_entry);
   mysql_mutex_destroy(&e->LOCK_parallel_entry);
   my_free(e);
@@ -2531,9 +2677,14 @@ rpl_parallel::find(uint32 domain_id)
     if (count == 0 || count > opt_slave_parallel_threads || domain_id == 0)
       count= opt_slave_parallel_threads;
     rpl_parallel_thread **p;
+    thread_standby *standby_arr;
+    size_t standby_arr_elems=
+      (opt_slave_parallel_threads + (STANDBY_COUNT_BATCH - 1)) /
+      STANDBY_COUNT_BATCH;
     if (!my_multi_malloc(MYF(MY_WME|MY_ZEROFILL),
                          &e, sizeof(*e),
                          &p, count*sizeof(*p),
+                         &standby_arr, standby_arr_elems*sizeof(*standby_arr),
                          NULL))
     {
       my_error(ER_OUTOFMEMORY, MYF(0), (int)(sizeof(*e)+count*sizeof(*p)));
@@ -2552,6 +2703,14 @@ rpl_parallel::find(uint32 domain_id)
     mysql_mutex_init(key_LOCK_parallel_entry, &e->LOCK_parallel_entry,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_parallel_entry, &e->COND_parallel_entry, NULL);
+    for (size_t i= 0; i < standby_arr_elems; ++i)
+    {
+      mysql_mutex_init(key_LOCK_standby_thread, &standby_arr[i].mutex,
+                       MY_MUTEX_INIT_FAST);
+      mysql_cond_init(key_COND_standby_thread, &standby_arr[i].cond, NULL);
+    }
+    e->standby_arr= standby_arr;
+    e->standby_arr_count= standby_arr_elems;
   }
   else
     e->force_abort= false;

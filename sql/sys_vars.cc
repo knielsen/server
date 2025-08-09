@@ -2197,6 +2197,17 @@ static Sys_var_ulong Sys_slave_parallel_max_queued(
        VALID_RANGE(0,2147483647), DEFAULT(131072), BLOCK_SIZE(1));
 
 
+static Sys_var_ulong Sys_slave_domain_parallel_transactions(
+       "slave_domain_parallel_transactions",
+       "Limit on how many transactions to start in parallel within one "
+       "domain_id, of the total of @@slave_parallel_threads / "
+       "@@slave_domain_parallel_threads configured. Later transactions will "
+       "be scheduled on standby initially, and will start when earlier "
+       "transactions have been applied and go to wait for their turn to "
+       "commit. 0 means no limit",
+       GLOBAL_VAR(opt_slave_domain_parallel_transactions),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0,16383), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_slave_parallel_threads_active(
        "slave_parallel_threads_active",
        "Limits the number of actively used parallel replication worker "

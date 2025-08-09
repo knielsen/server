@@ -265,6 +265,7 @@ extern ulong thread_cache_size;
 extern ulong stored_program_cache_size;
 extern ulong opt_slave_parallel_threads;
 extern ulong opt_slave_domain_parallel_threads;
+extern ulong opt_slave_domain_parallel_transactions;
 extern ulong opt_slave_parallel_threads_active;
 extern ulong opt_slave_parallel_max_queued;
 extern ulong opt_slave_parallel_mode;
@@ -359,7 +360,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_xid_list,
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_LOCK_relaylog_end_pos;
 extern PSI_mutex_key key_LOCK_slave_state, key_LOCK_binlog_state,
-  key_LOCK_rpl_thread, key_LOCK_rpl_thread_pool, key_LOCK_parallel_entry;
+  key_LOCK_rpl_thread, key_LOCK_rpl_thread_pool, key_LOCK_parallel_entry,
+  key_LOCK_standby_thread;
 
 extern PSI_mutex_key key_TABLE_SHARE_LOCK_share, key_LOCK_stats,
   key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
@@ -400,7 +402,8 @@ extern PSI_cond_key key_RELAYLOG_COND_queue_busy;
 extern PSI_cond_key key_TC_LOG_MMAP_COND_queue_busy;
 extern PSI_cond_key key_COND_rpl_thread, key_COND_rpl_thread_queue,
   key_COND_rpl_thread_stop, key_COND_rpl_thread_pool,
-  key_COND_parallel_entry, key_COND_group_commit_orderer;
+  key_COND_parallel_entry, key_COND_group_commit_orderer,
+  key_COND_standby_thread;
 extern PSI_cond_key key_COND_wait_gtid, key_COND_gtid_ignore_duplicates;
 extern PSI_cond_key key_TABLE_SHARE_COND_rotation;
 
@@ -563,6 +566,7 @@ extern PSI_stage_info stage_gtid_wait_other_connection;
 extern PSI_stage_info stage_slave_background_process_request;
 extern PSI_stage_info stage_slave_background_wait_request;
 extern PSI_stage_info stage_waiting_for_deadlock_kill;
+extern PSI_stage_info stage_slave_standby_transaction;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**

@@ -252,6 +252,31 @@ struct rpl_parallel_thread_pool {
 };
 
 
+/*
+  Array entry used to manage (batches of) standby threads/transactions.
+
+  To allow good parallelism in optimistic parallel replication when many
+  short-running transactions are mixed with few longer-running, it is
+  important to be able to have a large number of transactions pending, waiting
+  for a long-running transaction to commit. Otherwise there will be inactivity
+  while a long-running transaction replicates, all following threads just
+  waiting.
+
+  Thus, we allocate a larger number of threads, some of them on standby
+  initially. As transactions complete and enter wait_for_prior_commit, new
+  standby threads are started with following transactions.
+
+  Each thread_standby structure contains a mutex/condition pair to signal
+  standby threads to become active. Each entry corresponds to a batch of
+  STANDBY_COUNT_BATCH threads/transactions.
+*/
+struct thread_standby {
+  mysql_mutex_t mutex;
+  mysql_cond_t cond;
+};
+static constexpr uint32_t STANDBY_COUNT_BATCH= 4;
+
+
 struct rpl_parallel_entry {
   mysql_mutex_t LOCK_parallel_entry;
   mysql_cond_t COND_parallel_entry;
@@ -263,6 +288,7 @@ struct rpl_parallel_entry {
   */
   uint32 need_sub_id_signal;
   uint64 last_commit_id;
+  uint32 standby_arr_count;
   bool active;
   /*
     Set when SQL thread is shutting down, and no more events can be processed,
@@ -270,6 +296,11 @@ struct rpl_parallel_entry {
     waiting for event groups to complete.
   */
   bool force_abort;
+  /*
+    Set when standby transactions are in use
+    (--slave-domain-parallel-transactions).
+  */
+  bool need_standby_signal;
   /*
    At STOP SLAVE (force_abort=true), we do not want to process all events in
    the queue (which could unnecessarily delay stop, if a lot of events happen
@@ -343,6 +374,16 @@ struct rpl_parallel_entry {
     that it is safe to start executing the events in the following batch.
   */
   uint64 count_committing_event_groups;
+  /*
+    Count of event groups that have been applied, have become ready to commit,
+    but may still need to wait_for_prior_commit() (or may already have
+    committed).
+
+    Used to control when standby threads/transactions are allowed to start.
+  */
+  std::atomic<uint64> count_prioring_event_groups;
+  /* Mutex/condition array for activating standby threads/transactions. */
+  thread_standby *standby_arr;
   /* The group_commit_orderer object for the events currently being queued. */
   group_commit_orderer *current_gco;
 

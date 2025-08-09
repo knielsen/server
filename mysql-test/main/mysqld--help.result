@@ -1152,6 +1152,14 @@ The following specify which files/extra groups are read (specified before remain
  domains. The default of 0 means to allow a domain to grab
  as many threads as it wants, up to the value of
  slave_parallel_threads.
+ --slave-domain-parallel-transactions=# 
+ Limit on how many transactions to start in parallel
+ within one domain_id, of the total of
+ @@slave_parallel_threads /
+ @@slave_domain_parallel_threads configured. Later
+ transactions will be scheduled on standby initially, and
+ will start when earlier transactions have been applied
+ and go to wait for their turn to commit. 0 means no limit
  --slave-exec-mode=name 
  How replication events should be executed. Legal values
  are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode,
@@ -1809,6 +1817,7 @@ skip-slave-start FALSE
 slave-compressed-protocol FALSE
 slave-ddl-exec-mode IDEMPOTENT
 slave-domain-parallel-threads 0
+slave-domain-parallel-transactions 0
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 60

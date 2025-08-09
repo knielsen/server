@@ -3562,6 +3562,16 @@ NUMERIC_BLOCK_SIZE	1
 ENUM_VALUE_LIST	NULL
 READ_ONLY	NO
 COMMAND_LINE_ARGUMENT	REQUIRED
+VARIABLE_NAME	SLAVE_DOMAIN_PARALLEL_TRANSACTIONS
+VARIABLE_SCOPE	GLOBAL
+VARIABLE_TYPE	BIGINT UNSIGNED
+VARIABLE_COMMENT	Limit on how many transactions to start in parallel within one domain_id, of the total of @@slave_parallel_threads / @@slave_domain_parallel_threads configured. Later transactions will be scheduled on standby initially, and will start when earlier transactions have been applied and go to wait for their turn to commit. 0 means no limit
+NUMERIC_MIN_VALUE	0
+NUMERIC_MAX_VALUE	16383
+NUMERIC_BLOCK_SIZE	1
+ENUM_VALUE_LIST	NULL
+READ_ONLY	NO
+COMMAND_LINE_ARGUMENT	REQUIRED
 VARIABLE_NAME	SLAVE_EXEC_MODE
 VARIABLE_SCOPE	GLOBAL
 VARIABLE_TYPE	ENUM
