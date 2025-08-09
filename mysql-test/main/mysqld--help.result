@@ -1500,6 +1500,9 @@ The following specify which files/extra groups are read (specified before remain
  Alias for log_slow_query_file. Log slow queries to given
  log file. Defaults logging to 'hostname'-slow.log. Must
  be enabled to activate other slow log options
+ --snc-do-not-binlog-empty-statement 
+ Whether to binlog query events for statements that did
+ not modify any row
  --snc-master-ddl-repl-subdomain-id=# 
  Replicate some DDL statements in out-of-order alternate
  domain which is running always behind the default domain.
@@ -2086,6 +2089,7 @@ slave-transaction-retry-interval 0
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
+snc-do-not-binlog-empty-statement FALSE
 snc-master-ddl-repl-subdomain-id 0
 snc-replication-trx-slow-commit 31536000
 snc-slave-ddl-repl-subdomain-id 0

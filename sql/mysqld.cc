@@ -479,6 +479,7 @@ ulong slow_launch_time;
 uint32 snc_master_ddl_repl_subdomain_id;
 uint32 snc_slave_ddl_repl_subdomain_id;
 uint32 snc_slave_max_synchronized_domain_id;
+my_bool opt_snc_do_not_binlog_empty_statement= FALSE;
 ulong open_files_limit, max_binlog_size;
 ulong slave_trans_retries;
 ulong slave_trans_retry_interval;

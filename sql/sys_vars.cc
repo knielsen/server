@@ -4028,6 +4028,13 @@ static Sys_var_ulonglong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, SIZE_T_MAX), DEFAULT(MAX_SORT_MEMORY),
        BLOCK_SIZE(1));
 
+static Sys_var_mybool Sys_snc_do_not_binlog_empty_statement(
+       "snc_do_not_binlog_empty_statement",
+       "Whether to binlog query events for statements that did not modify any "
+       "row",
+       GLOBAL_VAR(opt_snc_do_not_binlog_empty_statement), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)

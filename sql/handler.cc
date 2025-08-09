@@ -7681,6 +7681,7 @@ int handler::binlog_log_row(const uchar *before_record,
   DBUG_ENTER("handler::binlog_log_row");
 
   int error = 0;
+  table->in_use->has_modified_row= true;
   if (row_logging)
     error= binlog_log_row_to_binlog(table, before_record, after_record,
                                     log_func, row_logging_has_trans);

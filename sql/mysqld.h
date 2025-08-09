@@ -253,6 +253,7 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern uint32 snc_master_ddl_repl_subdomain_id;
 extern uint32 snc_slave_ddl_repl_subdomain_id;
 extern uint32 snc_slave_max_synchronized_domain_id;
+extern my_bool opt_snc_do_not_binlog_empty_statement;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern uint max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
