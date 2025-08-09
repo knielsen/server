@@ -3574,6 +3574,13 @@ static Sys_var_mybool Sys_snc_enable_mdev29833(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_mybool Sys_snc_binlog_empty_statement(
+       "snc_binlog_empty_statement",
+       "Whether to binlog query events for statements that did not modify any "
+       "row",
+       GLOBAL_VAR(opt_snc_binlog_empty_statement), CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static Sys_var_ulong Sys_snc_min_recalc_interval(
        "snc_min_recalc_interval",
        "Minimum time interval between stats recalc for a given table (seconds).",

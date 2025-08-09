@@ -240,6 +240,7 @@ extern uint32 snc_master_ddl_repl_subdomain_id;
 extern uint32 snc_slave_ddl_repl_subdomain_id;
 extern uint32 snc_slave_max_synchronized_domain_id;
 extern my_bool snc_enable_mdev29833;
+extern my_bool opt_snc_binlog_empty_statement;
 extern ulong snc_min_recalc_interval;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern uint max_digest_length;

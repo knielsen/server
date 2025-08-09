@@ -7568,6 +7568,7 @@ void THD::reset_for_next_command(bool do_clear_error)
   binlog_unsafe_warning_flags= 0;
 
   save_prep_leaf_list= false;
+  has_modified_row= false;
 
 #ifdef WITH_WSREP
 #if !defined(DBUG_OFF)

@@ -2396,6 +2396,13 @@ public:
   Trans_binlog_info *semisync_info;
   /* If this is a semisync slave connection. */
   bool semi_sync_slave;
+  /*
+    Set when a statement (that can be binlogged in either row or statement
+    format) has modified any row. Used to avoid binlogging in statement
+    format those statements that do not modify any rows, similar to row
+    mode.
+  */
+  bool has_modified_row;
   ulonglong client_capabilities;  /* What the client supports */
   ulong max_client_packet_length;
 

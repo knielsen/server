@@ -7516,6 +7516,18 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                 is_current_stmt_binlog_format_row()));
     if (is_current_stmt_binlog_format_row())
       DBUG_RETURN(-1);
+    /*
+      In statement binlog format, do not binlog statements that did not modify
+      any rows, same way as in row mode.
+    */
+    if (!opt_snc_binlog_empty_statement && !has_modified_row &&
+        (lex->sql_command == SQLCOM_INSERT ||
+         lex->sql_command == SQLCOM_INSERT_SELECT ||
+         lex->sql_command == SQLCOM_REPLACE ||
+         lex->sql_command == SQLCOM_REPLACE_SELECT ||
+         lex->sql_command == SQLCOM_UPDATE ||
+         lex->sql_command == SQLCOM_DELETE))
+      DBUG_RETURN(-1);
     /* Fall through */
 
     /*

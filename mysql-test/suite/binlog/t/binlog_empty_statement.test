@@ -1,0 +1,55 @@
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+
+SET @old_binlog_empty= @@GLOBAL.snc_binlog_empty_statement;
+SELECT @old_binlog_empty AS `default value`;
+
+RESET MASTER;
+
+--let $i= 0
+while ($i < 4) {
+  if ($i == 0) {
+    --let $engine= Aria
+    --let $binlog_empty= 1
+  }
+  if ($i == 1) {
+    --let $engine= InnoDB
+    --let $binlog_empty= 1
+  }
+  if ($i == 2) {
+    --let $engine= Aria
+    --let $binlog_empty= 0
+  }
+  if ($i == 3) {
+    --let $engine= InnoDB
+    --let $binlog_empty= 0
+  }
+
+  FLUSH BINARY LOGS;
+  eval CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(10)) ENGINE=$engine;
+  eval SET GLOBAL snc_binlog_empty_statement= $binlog_empty;
+  INSERT INTO t1 VALUES (1, 0, 'a'), (100, 0, 'z');
+  # Statements that do not modify any rows.
+  UPDATE t1 SET b=0 WHERE a=10;
+  DELETE FROM t1 WHERE a=20;
+  # Statements that do modify rows.
+  INSERT INTO t1 VALUES (10, -1, ''), (20, -2, '');
+  UPDATE t1 SET b=0 WHERE a=10;
+  DELETE FROM t1 WHERE a=20;
+
+  # Check temporary tables.
+  CREATE TEMPORARY TABLE t2 AS SELECT * FROM t1 WHERE a > 10 AND a <= 20;
+  INSERT INTO t2 SELECT * FROM t1 WHERE a > 10 AND a <= 20;
+  REPLACE INTO t2 SELECT * FROM t1 WHERE a > 10 AND a <= 20;
+  INSERT INTO t2 SELECT * FROM t1 WHERE a >= 20;
+  INSERT INTO t1 SELECT a+100, b, c FROM t2;
+  DROP TEMPORARY TABLE t2;
+
+  --source include/wait_for_binlog_checkpoint.inc
+  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --source include/show_binlog_events.inc
+  DROP TABLE t1;
+  inc $i;
+}
+
+SET GLOBAL snc_binlog_empty_statement= @old_binlog_empty;

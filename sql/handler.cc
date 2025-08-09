@@ -6625,8 +6625,8 @@ static int binlog_log_row_internal(TABLE* table,
 int binlog_log_row(TABLE* table, const uchar *before_record,
                    const uchar *after_record, Log_func *log_func)
 {
-#ifdef WITH_WSREP
   THD *const thd= table->in_use;
+#ifdef WITH_WSREP
 
   /* only InnoDB tables will be replicated through binlog emulation */
   if ((WSREP_EMULATE_BINLOG(thd) &&
@@ -6635,6 +6635,7 @@ int binlog_log_row(TABLE* table, const uchar *before_record,
     return 0;
 #endif
 
+  thd->has_modified_row= true;
   if (!table->file->check_table_binlog_row_based(1))
     return 0;
   return binlog_log_row_internal(table, before_record, after_record, log_func);
