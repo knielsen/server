@@ -664,6 +664,7 @@ THD_list server_threads;
 Rpl_filter* cur_rpl_filter;
 Rpl_filter* global_rpl_filter;
 Rpl_filter* binlog_filter;
+Rpl_filter *binlog_row_filter;
 
 struct system_variables global_system_variables;
 /**
@@ -2036,6 +2037,7 @@ static void clean_up(bool print_message)
   my_uuid_end();
   delete type_handler_data;
   delete binlog_filter;
+  delete binlog_row_filter;
   delete global_rpl_filter;
   end_ssl();
 #ifndef EMBEDDED_LIBRARY
@@ -3962,7 +3964,8 @@ static int init_common_variables()
 
   global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!global_rpl_filter || !binlog_filter)
+  binlog_row_filter= new Rpl_filter;
+  if (!global_rpl_filter || !binlog_filter || !binlog_row_filter)
   {
     sql_perror("Could not allocate replication and binlog filters");
     exit(1);
@@ -6762,6 +6765,14 @@ struct my_option my_long_options[]=
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged to the binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-row-do-table", OPT_BINLOG_ROW_DO_TABLE,
+   "In MIXED binlog format, tells the master it should switch to row mode "
+   "when modifying the given table(s).",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-row-ignore-table", OPT_BINLOG_ROW_IGNORE_TABLE,
+   "In MIXED binlog format, tells the master it should switch to row mode "
+   "when modifying a table other than the given table(s).",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-row-event-max-size", 0,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
@@ -8548,6 +8559,16 @@ mysqld_get_one_option(int optid, const struct my_option *opt, char *argument)
   case (int)OPT_BINLOG_DO_DB:
   {
     binlog_filter->add_do_db(argument);
+    break;
+  }
+  case (int)OPT_BINLOG_ROW_IGNORE_TABLE:
+  {
+    binlog_row_filter->add_ignore_table(argument);
+    break;
+  }
+  case (int)OPT_BINLOG_ROW_DO_TABLE:
+  {
+    binlog_row_filter->add_do_table(argument);
     break;
   }
   case (int)OPT_REPLICATE_DO_TABLE:

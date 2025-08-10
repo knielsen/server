@@ -99,10 +99,17 @@ The following specify which files/extra groups are read (specified before remain
  the other, and it should not normally be necessary to
  change it.
  (Defaults to on; use --skip-binlog-optimize-thread-scheduling to disable.)
+ --binlog-row-do-table=name 
+ In MIXED binlog format, tells the master it should switch
+ to row mode when modifying the given table(s).
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-row-ignore-table=name 
+ In MIXED binlog format, tells the master it should switch
+ to row mode when modifying a table other than the given
+ table(s).
  --binlog-row-image=name 
  Controls whether rows should be logged in 'FULL',
  'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all

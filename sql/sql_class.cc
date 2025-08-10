@@ -6169,6 +6169,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint non_replicated_tables_count= 0;
 
+    /*
+      Flag if we should switch to row mode due to user-configured
+      --binlog-row-do-table / --binlog-row-ignore-table. */
+    bool binlog_switch_row= false;
+    if (binlog_row_filter->is_on())
+      binlog_switch_row= binlog_row_filter->tables_ok(db.str, tables);
+
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -6484,7 +6491,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
             || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 ||
-            is_bulk_op())
+            is_bulk_op() ||
+            binlog_switch_row)
         {
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
