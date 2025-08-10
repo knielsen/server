@@ -1,0 +1,1 @@
+--binlog-row-do-table=test.t_row --binlog-row-do-table=test2.t_row --binlog-row-do-table=test2.t_row2
