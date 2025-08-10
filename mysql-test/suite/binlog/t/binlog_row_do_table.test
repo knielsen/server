@@ -1,0 +1,64 @@
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+
+# We have a .opt that configures to switch to row for test.t_row, test2.t_row, test2.t_row2
+
+RESET MASTER;
+
+CREATE DATABASE test2;
+CREATE TABLE test.t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test.t_row (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test2.t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test2.t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test2.t_row (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test2.t_row2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+
+# Test modifying the table in current schema.
+use test;
+INSERT INTO t1 VALUES (1, 0), (2, 0), (3, 0);
+INSERT INTO t_row VALUES (1, 0), (2, 0), (3, 0);
+use test2;
+INSERT INTO t1 VALUES (1, 0), (2, 0), (3, 0);
+INSERT INTO t2 VALUES (1, 0), (2, 0), (3, 0);
+INSERT INTO t_row VALUES (1, 0), (2, 0), (3, 0);
+INSERT INTO t_row2 VALUES (1, 0), (2, 0), (3, 0);
+
+use test;
+UPDATE t1 SET b=1 WHERE a=2;
+UPDATE t_row SET b=1 WHERE a=3;
+use test2;
+UPDATE t2 SET b=1 WHERE a=1;
+UPDATE t_row2 SET b=1 WHERE a != 2;
+
+# Test modifying tables with explicit schema reference.
+use test;
+UPDATE test.t1 SET b=2 WHERE a=1;
+UPDATE test.t_row SET b=2 WHERE a=2;
+UPDATE test2.t1 SET b=2 WHERE a=3;
+UPDATE test2.t_row SET b=2 WHERE a IN (2, 3);
+
+# Test multi-table and cross-schema updates.
+use test2;
+UPDATE t1 x INNER JOIN t2 y ON (x.a = y.a) SET x.b=4, y.b=4 WHERE x.a=1;
+UPDATE t1 x INNER JOIN t_row2 y ON (x.a = y.a) SET x.b=5, y.b=5 WHERE x.a=2;
+UPDATE test.t1 x INNER JOIN test2.t1 y ON (x.a = y.a) SET x.b=6, y.b=6 WHERE x.a=1;
+UPDATE test.t_row x INNER JOIN test2.t2 y ON (x.a = y.a) SET x.b=7, y.b=7 WHERE x.a=3;
+
+DELETE test.t1, test2.t1
+  FROM test.t1, test2.t1
+ WHERE test.t1.a=test2.t1.a AND test.t1.a=3;
+DELETE test.t_row, test2.t2
+  FROM test.t_row, test2.t2
+ WHERE test.t_row.a=test2.t2.a AND test.t_row.a=3;
+
+# Test statements that do not update anything.
+use test;
+UPDATE t1 SET b=8 WHERE a=4;
+UPDATE t_row SET b=8 WHERE a=4;
+
+--source include/wait_for_binlog_checkpoint.inc
+--source include/show_binlog_events.inc
+
+use test;
+DROP DATABASE test2;
+DROP TABLE t1, t_row;
