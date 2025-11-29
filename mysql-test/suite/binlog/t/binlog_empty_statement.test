@@ -25,7 +25,9 @@ while ($i < 4) {
     --let $binlog_empty= 1
   }
 
+  --source include/wait_for_binlog_checkpoint.inc
   FLUSH BINARY LOGS;
+  --source include/wait_for_binlog_checkpoint.inc
   eval CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(10)) ENGINE=$engine;
   eval SET GLOBAL snc_do_not_binlog_empty_statement= $binlog_empty;
   INSERT INTO t1 VALUES (1, 0, 'a'), (100, 0, 'z');
@@ -45,7 +47,6 @@ while ($i < 4) {
   INSERT INTO t1 SELECT a+100, b, c FROM t2;
   DROP TEMPORARY TABLE t2;
 
-  --source include/wait_for_binlog_checkpoint.inc
   --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
   --source include/show_binlog_events.inc
   DROP TABLE t1;
